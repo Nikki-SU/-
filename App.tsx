@@ -14,8 +14,8 @@ import Toast from './src/components/Toast';
 function AppContent() {
   const questions = useAppStore((state) => state.questions);
   const showSummary = useAppStore((state) => state.showSummary);
+  const showHome = useAppStore((state) => state.showHome);
   const loadFromCSV = useAppStore((state) => state.loadFromCSV);
-  const setShowSummary = useAppStore((state) => state.setShowSummary);
   const [isLoading, setIsLoading] = React.useState(true);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ function AppContent() {
     );
   }
 
-  if (questions.length === 0) {
+  if (questions.length === 0 || showHome) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>

@@ -192,6 +192,7 @@ export default function HomePage() {
   const loadFromCSV = useAppStore((state) => state.loadFromCSV);
   const showToast = useAppStore((state) => state.showToast);
   const setShowSummary = useAppStore((state) => state.setShowSummary);
+  const setShowHome = useAppStore((state) => state.setShowHome);
 
   const handleImport = async () => {
     if (!markdownText.trim()) {
@@ -199,12 +200,14 @@ export default function HomePage() {
       return;
     }
     await loadQuestionsFromMarkdown(markdownText);
+    setShowHome(false);
     setShowEditor(false);
     setMarkdownText('');
   };
 
   const handleLoadSample = async () => {
     await loadQuestionsFromMarkdown(SAMPLE_MARKDOWN);
+    setShowHome(false);
   };
 
   const handleStartCSV = async () => {
@@ -214,10 +217,12 @@ export default function HomePage() {
       showToast('未找到本地数据，请先导入题库');
     } else {
       showToast(`已加载 ${state.questions.length} 道题`);
+      setShowHome(false);
     }
   };
 
   const handleGoQuiz = () => {
+    setShowHome(false);
     setShowSummary(false);
   };
 

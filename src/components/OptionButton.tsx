@@ -33,7 +33,7 @@ export default function OptionButton({
 
   const color = getOptionColor(label, selected, correctAnswer, status);
   const colors = COLOR_MAP[color];
-  const isDisabled = status !== 'unanswered';
+  const isDisabled = status === 'correct';
 
   const handlePress = () => {
     if (!isDisabled) {

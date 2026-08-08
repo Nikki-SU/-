@@ -3,6 +3,7 @@ import {
   readCSV,
   writeCSV,
   ensureDataDir,
+  stringifyCSV,
 } from '../utils/csvStorage';
 import { parseMarkdownToQuestions } from '../utils/markdownParser';
 import { checkAnswer } from '../utils/answerChecker';
@@ -25,42 +26,56 @@ function isWeb(): boolean {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 }
 
-function syncSaveProgress(state: ReturnType<typeof useAppStore.getState>) {
+function syncSaveAll(state: ReturnType<typeof useAppStore.getState>) {
   if (!isWeb()) return;
 
   try {
-    const progressRows = Object.values(state.progressMap).map((p) => ({
-      questionId: p.questionId,
-      selected: p.selected.join('|'),
-      status: p.status,
-      answeredAt: p.answeredAt ? String(p.answeredAt) : '',
+    const questionRows = state.questions.map((q) => ({
+      id: q.id,
+      index: q.index,
+      title: q.title,
+      content: q.content,
+      options: q.options.map((o) => ({ label: o.label, text: o.text })),
+      answer: q.answer,
+      explanation: q.explanation,
+      type: q.type,
     }));
     localStorage.setItem(
-      STORAGE_KEY_PREFIX + 'progress.csv',
+      STORAGE_KEY_PREFIX + 'questions.json',
+      JSON.stringify(questionRows)
+    );
+
+    const progressRows = Object.values(state.progressMap).map((p) => ({
+      questionId: p.questionId,
+      selected: p.selected,
+      status: p.status,
+      answeredAt: p.answeredAt || null,
+    }));
+    localStorage.setItem(
+      STORAGE_KEY_PREFIX + 'progress.json',
       JSON.stringify(progressRows)
     );
 
-    const wrongRows = state.wrongBankIds.map((id) => ({ questionId: id }));
     localStorage.setItem(
-      STORAGE_KEY_PREFIX + 'wrong_bank.csv',
-      JSON.stringify(wrongRows)
+      STORAGE_KEY_PREFIX + 'wrong_bank.json',
+      JSON.stringify(state.wrongBankIds)
     );
 
-    const favRows = state.favoritesIds.map((id) => ({ questionId: id }));
     localStorage.setItem(
-      STORAGE_KEY_PREFIX + 'favorites.csv',
-      JSON.stringify(favRows)
+      STORAGE_KEY_PREFIX + 'favorites.json',
+      JSON.stringify(state.favoritesIds)
     );
 
-    const metaRows = [
-      { key: 'currentIndex', value: String(state.currentIndex) },
-      { key: 'isInWrongBank', value: String(state.isInWrongBank) },
-      { key: 'totalQuestions', value: String(state.questions.length) },
-      { key: 'lastOpened', value: new Date().toISOString() },
-    ];
     localStorage.setItem(
-      STORAGE_KEY_PREFIX + 'metadata.csv',
-      JSON.stringify(metaRows)
+      STORAGE_KEY_PREFIX + 'metadata.json',
+      JSON.stringify({
+        currentIndex: state.currentIndex,
+        currentMode: state.currentMode,
+        isInWrongBank: state.isInWrongBank,
+        isProgressBoardExpanded: state.isProgressBoardExpanded,
+        totalQuestions: state.questions.length,
+        lastOpened: new Date().toISOString(),
+      })
     );
   } catch (e) {
     console.warn('Sync save failed:', e);
@@ -78,6 +93,7 @@ interface AppState {
   isInWrongBank: boolean;
   isProgressBoardExpanded: boolean;
   showSummary: boolean;
+  showHome: boolean;
   toastMessage: string | null;
 
   loadQuestionsFromMarkdown: (markdown: string) => Promise<void>;
@@ -94,18 +110,23 @@ interface AppState {
   enterWrongBank: () => void;
   exitWrongBank: () => void;
   resetAll: () => void;
+  goHome: () => void;
   showToast: (message: string) => void;
   hideToast: () => void;
   setShowSummary: (value: boolean) => void;
+  setShowHome: (value: boolean) => void;
   getCurrentQuestions: () => Question[];
 }
 
-// 开发模式下暴露 store 到 window 对象，便于调试
-if (typeof window !== 'undefined') {
-  (window as any).__quizStore = useAppStore;
-}
-
 async function performSave(state: ReturnType<typeof useAppStore.getState>) {
+  // Web环境使用JSON存储，避免CSV解析问题
+  if (isWeb()) {
+    console.log('[DEBUG] performSave: web env, using JSON');
+    syncSaveAll(state);
+    return;
+  }
+
+  console.log('[DEBUG] performSave: native env, using CSV');
   await ensureDataDir();
 
   const questionRows: QuestionCSVRow[] = state.questions.map((q) => ({
@@ -174,6 +195,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isInWrongBank: false,
   isProgressBoardExpanded: false,
   showSummary: false,
+  showHome: false,
   toastMessage: null,
 
   getCurrentQuestions: () => {
@@ -207,14 +229,130 @@ export const useAppStore = create<AppState>((set, get) => ({
       favoritesIds: [],
       currentIndex: 0,
       showSummary: false,
+      showHome: false,
       isInWrongBank: false,
       currentMode: 'question',
     });
+    // 直接构造保存数据，避免state更新延迟
+    try {
+      const questionRows = questions.map((q) => ({
+        id: q.id,
+        index: q.index,
+        title: q.title,
+        content: q.content,
+        options: q.options.map((o) => ({ label: o.label, text: o.text })),
+        answer: q.answer,
+        explanation: q.explanation,
+        type: q.type,
+      }));
+      localStorage.setItem(
+        STORAGE_KEY_PREFIX + 'questions.json',
+        JSON.stringify(questionRows)
+      );
+
+      const progressRows = Object.values(progressMap).map((p) => ({
+        questionId: p.questionId,
+        selected: p.selected,
+        status: p.status,
+        answeredAt: p.answeredAt || null,
+      }));
+      localStorage.setItem(
+        STORAGE_KEY_PREFIX + 'progress.json',
+        JSON.stringify(progressRows)
+      );
+
+      localStorage.setItem(
+        STORAGE_KEY_PREFIX + 'wrong_bank.json',
+        JSON.stringify([])
+      );
+      localStorage.setItem(
+        STORAGE_KEY_PREFIX + 'favorites.json',
+        JSON.stringify([])
+      );
+      localStorage.setItem(
+        STORAGE_KEY_PREFIX + 'metadata.json',
+        JSON.stringify({
+          currentIndex: 0,
+          currentMode: 'question',
+          isInWrongBank: false,
+          isProgressBoardExpanded: false,
+          totalQuestions: questions.length,
+          lastOpened: new Date().toISOString(),
+        })
+      );
+      console.log('[DEBUG] JSON save successful');
+    } catch (e) {
+      console.warn('JSON save failed:', e);
+    }
     serializeSave();
     get().showToast(`导入成功，共 ${questions.length} 题`);
   },
 
   loadFromCSV: async () => {
+    // Web环境优先从JSON读取（避免CSV解析问题）
+    if (isWeb()) {
+      try {
+        const questionsRaw = localStorage.getItem(STORAGE_KEY_PREFIX + 'questions.json');
+        const progressRaw = localStorage.getItem(STORAGE_KEY_PREFIX + 'progress.json');
+        const wrongRaw = localStorage.getItem(STORAGE_KEY_PREFIX + 'wrong_bank.json');
+        const favRaw = localStorage.getItem(STORAGE_KEY_PREFIX + 'favorites.json');
+        const metaRaw = localStorage.getItem(STORAGE_KEY_PREFIX + 'metadata.json');
+
+        if (!questionsRaw) {
+          // 尝试从旧CSV格式加载
+          const csvQuestions = localStorage.getItem(STORAGE_KEY_PREFIX + 'questions.csv');
+          if (!csvQuestions) return;
+        }
+
+        const questions: Question[] = questionsRaw
+          ? JSON.parse(questionsRaw).map((q: any) => ({
+              id: q.id,
+              index: q.index,
+              title: q.title,
+              content: q.content,
+              options: q.options,
+              answer: q.answer,
+              explanation: q.explanation,
+              type: q.type,
+            }))
+          : [];
+
+        const progressMap: Record<string, Progress> = {};
+        if (progressRaw) {
+          JSON.parse(progressRaw).forEach((p: any) => {
+            progressMap[p.questionId] = {
+              questionId: p.questionId,
+              selected: p.selected || [],
+              status: p.status as AnswerStatus,
+              answeredAt: p.answeredAt || undefined,
+            };
+          });
+        }
+
+        const wrongBankIds = wrongRaw ? JSON.parse(wrongRaw) : [];
+        const favoritesIds = favRaw ? JSON.parse(favRaw) : [];
+
+        let currentIndex = 0;
+        if (metaRaw) {
+          const meta = JSON.parse(metaRaw);
+          currentIndex = meta.currentIndex || 0;
+        }
+
+        set({
+          questions,
+          progressMap,
+          wrongBankIds,
+          favoritesIds,
+          currentIndex,
+          showHome: false,
+        });
+        return;
+      } catch (e) {
+        console.warn('JSON load failed, trying CSV:', e);
+      }
+    }
+
+    // Native环境使用CSV
     await ensureDataDir();
 
     const questionRows = await readCSV<QuestionCSVRow>('questions.csv');
@@ -310,7 +448,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
     });
     // 立即同步保存
-    syncSaveProgress(useAppStore.getState());
+    syncSaveAll(useAppStore.getState());
     serializeSave();
     console.log('[DEBUG selectOption]', questionId, 'selected:', newSelected, 'status:', progress.status);
   },
@@ -357,7 +495,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentMode: 'explanation',
     });
     // 立即同步保存
-    syncSaveProgress(useAppStore.getState());
+    syncSaveAll(useAppStore.getState());
     serializeSave();
   },
 
@@ -365,7 +503,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { currentIndex } = get();
     if (currentIndex > 0) {
       set({ currentIndex: currentIndex - 1, currentMode: 'question' });
-      syncSaveProgress(useAppStore.getState());
+      syncSaveAll(useAppStore.getState());
       serializeSave();
     }
   },
@@ -375,7 +513,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const list = get().getCurrentQuestions();
     if (currentIndex < list.length - 1) {
       set({ currentIndex: currentIndex + 1, currentMode: 'question' });
-      syncSaveProgress(useAppStore.getState());
+      syncSaveAll(useAppStore.getState());
       serializeSave();
     } else {
       const allAnswered = list.every(
@@ -391,7 +529,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       
       if (allAnswered) {
         set({ showSummary: true });
-        syncSaveProgress(useAppStore.getState());
+        syncSaveAll(useAppStore.getState());
         console.log('[DEBUG] showSummary set to true');
       } else {
         get().showToast('还有题目未完成');
@@ -408,7 +546,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         currentMode: 'question',
         isProgressBoardExpanded: false,
       });
-      syncSaveProgress(useAppStore.getState());
+      syncSaveAll(useAppStore.getState());
       serializeSave();
     }
   },
@@ -424,7 +562,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       ? favoritesIds.filter((id) => id !== questionId)
       : [...favoritesIds, questionId];
     set({ favoritesIds: newFavorites });
-    syncSaveProgress(useAppStore.getState());
+    syncSaveAll(useAppStore.getState());
     serializeSave();
   },
 
@@ -440,13 +578,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
     set({ isInWrongBank: true, currentIndex: 0, currentMode: 'question' });
-    syncSaveProgress(useAppStore.getState());
+    syncSaveAll(useAppStore.getState());
     serializeSave();
   },
 
   exitWrongBank: () => {
     set({ isInWrongBank: false, currentIndex: 0, currentMode: 'question' });
-    syncSaveProgress(useAppStore.getState());
+    syncSaveAll(useAppStore.getState());
     serializeSave();
   },
 
@@ -468,9 +606,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentMode: 'question',
       isInWrongBank: false,
       showSummary: false,
+      showHome: false,
     });
-    syncSaveProgress(useAppStore.getState());
+    syncSaveAll(useAppStore.getState());
     serializeSave();
+  },
+
+  goHome: () => {
+    set({ showHome: true, showSummary: false });
+    syncSaveAll(useAppStore.getState());
   },
 
   showToast: (message: string) => {
@@ -487,4 +631,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowSummary: (value: boolean) => {
     set({ showSummary: value });
   },
+
+  setShowHome: (value: boolean) => {
+    set({ showHome: value });
+  },
 }));
+
+// 开发模式下暴露 store 到 window 对象，便于调试
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, '__quizStore', {
+    get: () => useAppStore,
+    configurable: true,
+  });
+}

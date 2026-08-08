@@ -9,6 +9,7 @@ export default function SummaryPage() {
   const setShowSummary = useAppStore((state) => state.setShowSummary);
   const enterWrongBank = useAppStore((state) => state.enterWrongBank);
   const resetAll = useAppStore((state) => state.resetAll);
+  const goHome = useAppStore((state) => state.goHome);
 
   const stats = questions.reduce(
     (acc, q) => {
@@ -100,7 +101,7 @@ export default function SummaryPage() {
 
         <TouchableOpacity
           style={styles.homeButton}
-          onPress={() => setShowSummary(false)}
+          onPress={() => goHome()}
         >
           <Text style={styles.homeButtonText}>← 返回首页</Text>
         </TouchableOpacity>

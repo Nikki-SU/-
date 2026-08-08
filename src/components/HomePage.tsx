@@ -40,7 +40,147 @@ B. 使用useMemo
 C. 使用useCallback
 D. 增加不必要的重渲染
 答案：ABC
-解析：React.memo、useMemo和useCallback都是常用的性能优化手段，可以减少不必要的重渲染。`;
+解析：React.memo、useMemo和useCallback都是常用的性能优化手段，可以减少不必要的重渲染。
+
+---
+# 第5题
+TypeScript中，interface和type的主要区别是？
+A. interface可以声明合并，type不行
+B. type可以声明合并，interface不行
+C. 两者完全相同
+D. interface只能用于类
+答案：A
+解析：interface支持声明合并，多次定义同名interface会自动合并。type则不行，重复定义会报错。
+
+---
+# 第6题
+以下哪个不是React的内置Hook？
+A. useState
+B. useEffect
+C. useFetch
+D. useMemo
+答案：C
+解析：useFetch不是React内置Hook，这是自定义Hook的常见命名。
+
+---
+# 第7题
+JavaScript中，以下哪些是异步编程的方式？
+A. Callback
+B. Promise
+C. async/await
+D. setTimeout
+答案：ABCD
+解析：四种都是异步编程方式。Callback是回调，Promise是Promise对象，async/await是基于Promise的语法糖，setTimeout是定时器。
+
+---
+# 第8题
+以下哪个CSS属性用于控制元素显示/隐藏且不占空间？
+A. display: none
+B. visibility: hidden
+C. opacity: 0
+D. overflow: hidden
+答案：A
+解析：display: none使元素完全消失，不占空间。visibility: hidden和opacity: 0虽然看不见但仍占空间。
+
+---
+# 第9题
+React Native中，StyleSheet.create的主要作用是什么？
+A. 创建全局样式变量
+B. 优化性能，在JS和Native之间共享样式引用
+C. 动态创建样式
+D. 定义主题
+答案：B
+解析：StyleSheet.create用于创建不可变的样式表，可在JS和Native之间共享引用以优化性能。
+
+---
+# 第10题
+以下哪些是Redux Toolkit的特性？
+A. 自动生成action types
+B. 支持createSlice简化reducer编写
+C. 内置thunk中间件
+D. 必须手动定义action types
+答案：ABC
+解析：Redux Toolkit简化了Redux开发，自动生成action types，提供createSlice，内置thunk中间件。选项D是传统Redux的做法。
+
+---
+# 第11题
+Expo中，以下哪个命令用于启动开发服务器？
+A. expo start
+B. expo build
+C. expo init
+D. expo publish
+答案：A
+解析：expo start启动开发服务器，expo build打包，expo init初始化项目，expo publish发布到 Expo 服务器。
+
+---
+# 第12题
+以下哪些是React Native常用的导航库？
+A. React Navigation
+B. React Native Router Flux
+C. React Router DOM
+D. React Native Navigation
+答案：ABD
+解析：React Router DOM 是 Web 专用，其他三个都是 RN 导航库。
+
+---
+# 第13题
+JavaScript中，typeof null的结果是什么？
+A. "null"
+B. "undefined"
+C. "object"
+D. "number"
+答案：C
+解析：这是JavaScript的一个历史遗留bug，typeof null返回"object"。
+
+---
+# 第14题
+以下哪些是有效的React Native组件？
+A. Class Component
+B. Function Component
+C. PureComponent
+D. Struct Component
+答案：ABC
+解析：React Native支持Class Component、Function Component和PureComponent，没有Struct Component这种组件类型。
+
+---
+# 第15题
+Git中，以下哪个命令用于撤销所有未提交的更改？
+A. git reset --hard
+B. git clean
+C. git checkout
+D. git revert
+答案：A
+解析：git reset --hard会丢弃所有未提交的更改。git clean用于删除未跟踪文件，git checkout用于切换分支或恢复文件，git revert用于创建新提交来撤销更改。
+
+---
+# 第16题
+以下哪些是ES6新增的特性？
+A. let/const
+B. Arrow Functions
+C. var关键字
+D. Template Literals
+答案：ABD
+解析：var关键字是ES5就有的，let/const、箭头函数和模板字符串都是ES6新增的。
+
+---
+# 第17题
+React中，key属性的主要作用是什么？
+A. 美化代码
+B. 帮助React识别列表中哪些元素改变了
+C. 设置样式
+D. 传递数据
+答案：B
+解析：key帮助React高效更新虚拟DOM，识别列表中元素的变化。
+
+---
+# 第18题
+以下哪个不是有效的HTTP方法？
+A. GET
+B. POST
+C. FETCH
+D. DELETE
+答案：C
+解析：FETCH不是HTTP方法，它是JavaScript的API。标准HTTP方法包括GET、POST、PUT、DELETE、PATCH等。`;
 
 export default function HomePage() {
   const [showEditor, setShowEditor] = useState(false);

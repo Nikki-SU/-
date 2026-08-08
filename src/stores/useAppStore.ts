@@ -19,6 +19,54 @@ import type {
 let _isSaving = false;
 let _needsSave = false;
 
+const STORAGE_KEY_PREFIX = 'quiz_app_';
+
+function isWeb(): boolean {
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+}
+
+function syncSaveProgress(state: ReturnType<typeof useAppStore.getState>) {
+  if (!isWeb()) return;
+
+  try {
+    const progressRows = Object.values(state.progressMap).map((p) => ({
+      questionId: p.questionId,
+      selected: p.selected.join('|'),
+      status: p.status,
+      answeredAt: p.answeredAt ? String(p.answeredAt) : '',
+    }));
+    localStorage.setItem(
+      STORAGE_KEY_PREFIX + 'progress.csv',
+      JSON.stringify(progressRows)
+    );
+
+    const wrongRows = state.wrongBankIds.map((id) => ({ questionId: id }));
+    localStorage.setItem(
+      STORAGE_KEY_PREFIX + 'wrong_bank.csv',
+      JSON.stringify(wrongRows)
+    );
+
+    const favRows = state.favoritesIds.map((id) => ({ questionId: id }));
+    localStorage.setItem(
+      STORAGE_KEY_PREFIX + 'favorites.csv',
+      JSON.stringify(favRows)
+    );
+
+    const metaRows = [
+      { key: 'currentIndex', value: String(state.currentIndex) },
+      { key: 'isInWrongBank', value: String(state.isInWrongBank) },
+      { key: 'totalQuestions', value: String(state.questions.length) },
+      { key: 'lastOpened', value: new Date().toISOString() },
+    ];
+    localStorage.setItem(
+      STORAGE_KEY_PREFIX + 'metadata.csv',
+      JSON.stringify(metaRows)
+    );
+  } catch (e) {
+    console.warn('Sync save failed:', e);
+  }
+}
+
 interface AppState {
   questions: Question[];
   progressMap: Record<string, Progress>;
@@ -50,6 +98,11 @@ interface AppState {
   hideToast: () => void;
   setShowSummary: (value: boolean) => void;
   getCurrentQuestions: () => Question[];
+}
+
+// 开发模式下暴露 store 到 window 对象，便于调试
+if (typeof window !== 'undefined') {
+  (window as any).__quizStore = useAppStore;
 }
 
 async function performSave(state: ReturnType<typeof useAppStore.getState>) {
@@ -233,7 +286,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { progressMap, questions } = get();
     const question = questions.find((q) => q.id === questionId);
     const progress = progressMap[questionId];
-    if (!question || !progress || progress.status !== 'unanswered') return;
+    if (!question || !progress) return;
+    
+    // 允许在任何状态下选择答案（用于修复错误状态）
+    if (progress.status !== 'unanswered' && progress.status !== 'wrong' && progress.status !== 'partial') {
+      return;
+    }
 
     let newSelected: string[];
     if (question.type === 'single') {
@@ -244,13 +302,17 @@ export const useAppStore = create<AppState>((set, get) => ({
         : [...progress.selected, label].sort();
     }
 
+    const newProgress = { ...progress, selected: newSelected };
     set({
       progressMap: {
         ...progressMap,
-        [questionId]: { ...progress, selected: newSelected },
+        [questionId]: newProgress,
       },
     });
+    // 立即同步保存
+    syncSaveProgress(useAppStore.getState());
     serializeSave();
+    console.log('[DEBUG selectOption]', questionId, 'selected:', newSelected, 'status:', progress.status);
   },
 
   submitAnswer: (questionId: string) => {
@@ -284,24 +346,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       newWrongBankIds = newWrongBankIds.filter((id) => id !== questionId);
     }
 
+    console.log('[DEBUG submitAnswer]', questionId, 'selected:', progress.selected, 'correct:', question.answer, 'status:', status);
+    
     set({
       progressMap: {
         ...progressMap,
         [questionId]: newProgress,
       },
       wrongBankIds: newWrongBankIds,
+      currentMode: 'explanation',
     });
+    // 立即同步保存
+    syncSaveProgress(useAppStore.getState());
     serializeSave();
-
-    if (status === 'correct') {
-      setTimeout(() => get().goToNext(), 800);
-    }
   },
 
   goToPrevious: () => {
     const { currentIndex } = get();
     if (currentIndex > 0) {
       set({ currentIndex: currentIndex - 1, currentMode: 'question' });
+      syncSaveProgress(useAppStore.getState());
       serializeSave();
     }
   },
@@ -311,15 +375,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     const list = get().getCurrentQuestions();
     if (currentIndex < list.length - 1) {
       set({ currentIndex: currentIndex + 1, currentMode: 'question' });
+      syncSaveProgress(useAppStore.getState());
       serializeSave();
     } else {
       const allAnswered = list.every(
         (q) => get().progressMap[q.id]?.status !== 'unanswered'
       );
+      console.log('[DEBUG goToNext] currentIndex:', currentIndex, 'list.length:', list.length, 'allAnswered:', allAnswered);
+      
+      // 调试：检查每道题的状态
+      list.forEach((q, i) => {
+        const status = get().progressMap[q.id]?.status;
+        console.log(`[DEBUG] 题${i+1}(${q.id}): status=${status}`);
+      });
+      
       if (allAnswered) {
         set({ showSummary: true });
+        syncSaveProgress(useAppStore.getState());
+        console.log('[DEBUG] showSummary set to true');
       } else {
         get().showToast('还有题目未完成');
+        console.log('[DEBUG] Some questions unanswered');
       }
     }
   },
@@ -332,6 +408,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         currentMode: 'question',
         isProgressBoardExpanded: false,
       });
+      syncSaveProgress(useAppStore.getState());
       serializeSave();
     }
   },
@@ -347,6 +424,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       ? favoritesIds.filter((id) => id !== questionId)
       : [...favoritesIds, questionId];
     set({ favoritesIds: newFavorites });
+    syncSaveProgress(useAppStore.getState());
     serializeSave();
   },
 
@@ -362,11 +440,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
     set({ isInWrongBank: true, currentIndex: 0, currentMode: 'question' });
+    syncSaveProgress(useAppStore.getState());
     serializeSave();
   },
 
   exitWrongBank: () => {
     set({ isInWrongBank: false, currentIndex: 0, currentMode: 'question' });
+    syncSaveProgress(useAppStore.getState());
     serializeSave();
   },
 
@@ -389,6 +469,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       isInWrongBank: false,
       showSummary: false,
     });
+    syncSaveProgress(useAppStore.getState());
     serializeSave();
   },
 

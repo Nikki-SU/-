@@ -7,6 +7,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "web:build": "expo export && node scripts/fix-paths.js",
+    "web:deploy": "gh-pages -d dist",
+    "web:publish": "npm run web:build && npm run web:deploy",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -24,6 +27,7 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@types/react": "~18.2.45",
+    "gh-pages": "^6.3.0",
     "typescript": "^5.3.0"
   },
   "private": true

@@ -5,21 +5,40 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "scheme": "quizapp",
+    "platforms": ["ios", "android", "web"],
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFFFFF",
+      "image": "./assets/splash.jpg"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.quizapp.app",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.quizapp.app",
+      "versionCode": 1,
+      "permissions": ["android.permission.INTERNET"],
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
-      }
+        "foregroundImage": "./assets/adaptive-icon.jpg",
+        "backgroundColor": "#FFFFFF"
+      },
+      "icon": "./assets/icon.jpg"
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.jpg"
+    },
+    "plugins": [
+      "expo-file-system"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "quiz-app"
+      }
     }
   }
 }

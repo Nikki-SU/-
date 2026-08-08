@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { getOptionColor } from '../utils/answerChecker';
 import { useAppStore } from '../stores/useAppStore';
-import type { ColorType } from '../types';
+import type { AnswerStatus, ColorType } from '../types';
 
 const COLOR_MAP: Record<ColorType, { bg: string; border: string; text: string }> = {
   gray: { bg: '#F5F5F5', border: '#E0E0E0', text: '#666666' },
@@ -15,35 +15,29 @@ const COLOR_MAP: Record<ColorType, { bg: string; border: string; text: string }>
 interface OptionButtonProps {
   label: string;
   text: string;
+  questionId: string;
+  correctAnswer: string;
+  selected: string[];
+  status: AnswerStatus;
 }
 
-export default function OptionButton({ label, text }: OptionButtonProps) {
-  const questions = useAppStore((state) => state.questions);
-  const progressMap = useAppStore((state) => state.progressMap);
-  const currentIndex = useAppStore((state) => state.currentIndex);
+export default function OptionButton({
+  label,
+  text,
+  questionId,
+  correctAnswer,
+  selected,
+  status,
+}: OptionButtonProps) {
   const selectOption = useAppStore((state) => state.selectOption);
-  const getCurrentQuestions = useAppStore((state) => state.getCurrentQuestions);
 
-  const currentQuestions = getCurrentQuestions();
-  const question = currentQuestions[currentIndex];
-  if (!question) return null;
-
-  const progress = progressMap[question.id];
-  const status = progress?.status || 'unanswered';
-
-  const color = getOptionColor(
-    label,
-    progress?.selected || [],
-    question.answer,
-    status
-  );
-
+  const color = getOptionColor(label, selected, correctAnswer, status);
   const colors = COLOR_MAP[color];
   const isDisabled = status !== 'unanswered';
 
   const handlePress = () => {
     if (!isDisabled) {
-      selectOption(question.id, label);
+      selectOption(questionId, label);
     }
   };
 

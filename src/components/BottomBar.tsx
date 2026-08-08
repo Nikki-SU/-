@@ -6,6 +6,8 @@ export default function BottomBar() {
   const currentIndex = useAppStore((state) => state.currentIndex);
   const currentMode = useAppStore((state) => state.currentMode);
   const progressMap = useAppStore((state) => state.progressMap);
+  const isInWrongBank = useAppStore((state) => state.isInWrongBank);
+  const wrongBankIds = useAppStore((state) => state.wrongBankIds);
   const goToPrevious = useAppStore((state) => state.goToPrevious);
   const goToNext = useAppStore((state) => state.goToNext);
   const submitAnswer = useAppStore((state) => state.submitAnswer);
@@ -19,6 +21,10 @@ export default function BottomBar() {
 
   const isFirst = currentIndex === 0;
   const isLast = currentIndex === currentQuestions.length - 1;
+  const allAnswered = currentQuestions.every(
+    (q) => progressMap[q.id]?.status !== 'unanswered'
+  );
+  const finishDisabled = isLast && !allAnswered;
 
   const getMiddleButton = () => {
     if (!hasSubmitted && question) {
@@ -68,12 +74,21 @@ export default function BottomBar() {
       {getMiddleButton()}
 
       <TouchableOpacity
-        style={[styles.button, styles.navButton, isLast && styles.buttonDisabled]}
+        style={[
+          styles.button,
+          styles.navButton,
+          isLast && allAnswered && styles.finishButton,
+          finishDisabled && styles.buttonDisabled,
+        ]}
         onPress={goToNext}
-        disabled={isLast}
       >
-        <Text style={[styles.buttonText, isLast && styles.textDisabled]}>
-          下一题
+        <Text
+          style={[
+            styles.buttonText,
+            finishDisabled && styles.textDisabled,
+          ]}
+        >
+          {isLast ? '完成' : '下一题'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -114,6 +129,9 @@ const styles = StyleSheet.create({
   questionButton: {
     backgroundColor: '#4CAF50',
     minWidth: '28%',
+  },
+  finishButton: {
+    backgroundColor: '#4CAF50',
   },
   buttonDisabled: {
     opacity: 0.4,

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { useAppStore } from '../stores/useAppStore';
 
 const SAMPLE_MARKDOWN = `# 第1题
@@ -52,6 +51,7 @@ export default function HomePage() {
   const questions = useAppStore((state) => state.questions);
   const loadFromCSV = useAppStore((state) => state.loadFromCSV);
   const showToast = useAppStore((state) => state.showToast);
+  const setShowSummary = useAppStore((state) => state.setShowSummary);
 
   const handleImport = async () => {
     if (!markdownText.trim()) {
@@ -63,16 +63,22 @@ export default function HomePage() {
     setMarkdownText('');
   };
 
-  const handleLoadSample = () => {
-    setMarkdownText(SAMPLE_MARKDOWN);
+  const handleLoadSample = async () => {
+    await loadQuestionsFromMarkdown(SAMPLE_MARKDOWN);
   };
 
   const handleStartCSV = async () => {
     await loadFromCSV();
     const state = useAppStore.getState();
     if (state.questions.length === 0) {
-      showToast('请先导入有效题库');
+      showToast('未找到本地数据，请先导入题库');
+    } else {
+      showToast(`已加载 ${state.questions.length} 道题`);
     }
+  };
+
+  const handleGoQuiz = () => {
+    setShowSummary(false);
   };
 
   if (showEditor) {
@@ -83,7 +89,9 @@ export default function HomePage() {
             <Text style={styles.backButton}>← 返回</Text>
           </TouchableOpacity>
           <Text style={styles.editorTitle}>编辑Markdown题库</Text>
-          <TouchableOpacity onPress={handleLoadSample}>
+          <TouchableOpacity
+            onPress={() => setMarkdownText(SAMPLE_MARKDOWN)}
+          >
             <Text style={styles.sampleButton}>示例</Text>
           </TouchableOpacity>
         </View>
@@ -121,7 +129,7 @@ export default function HomePage() {
           </Text>
           <TouchableOpacity
             style={styles.startButton}
-            onPress={handleLoadSample}
+            onPress={handleGoQuiz}
           >
             <Text style={styles.startButtonText}>继续上次答题</Text>
           </TouchableOpacity>

@@ -2,11 +2,14 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useAppStore } from '../stores/useAppStore';
 import OptionButton from './OptionButton';
+import type { AnswerStatus } from '../types';
 
 export default function QuestionCard() {
   const currentIndex = useAppStore((state) => state.currentIndex);
   const currentMode = useAppStore((state) => state.currentMode);
   const progressMap = useAppStore((state) => state.progressMap);
+  const isInWrongBank = useAppStore((state) => state.isInWrongBank);
+  const wrongBankIds = useAppStore((state) => state.wrongBankIds);
   const getCurrentQuestions = useAppStore((state) => state.getCurrentQuestions);
 
   const currentQuestions = getCurrentQuestions();
@@ -68,6 +71,10 @@ export default function QuestionCard() {
             key={option.label}
             label={option.label}
             text={option.text}
+            questionId={question.id}
+            correctAnswer={question.answer}
+            selected={progress?.selected || []}
+            status={(progress?.status || 'unanswered') as AnswerStatus}
           />
         ))}
       </View>

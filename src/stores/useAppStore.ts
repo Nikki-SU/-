@@ -16,6 +16,9 @@ import type {
   ScreenMode,
 } from '../types';
 
+let _isSaving = false;
+let _needsSave = false;
+
 interface AppState {
   questions: Question[];
   progressMap: Record<string, Progress>;
@@ -49,6 +52,65 @@ interface AppState {
   getCurrentQuestions: () => Question[];
 }
 
+async function performSave(state: ReturnType<typeof useAppStore.getState>) {
+  await ensureDataDir();
+
+  const questionRows: QuestionCSVRow[] = state.questions.map((q) => ({
+    id: q.id,
+    index: String(q.index),
+    title: q.title,
+    content: q.content,
+    options: JSON.stringify(q.options.map((o) => ({ label: o.label, text: o.text }))),
+    answer: q.answer,
+    explanation: q.explanation,
+    type: q.type,
+  }));
+  await writeCSV('questions.csv', questionRows);
+
+  const progressRows: ProgressCSVRow[] = Object.values(state.progressMap).map(
+    (p) => ({
+      questionId: p.questionId,
+      selected: p.selected.join('|'),
+      status: p.status,
+      answeredAt: p.answeredAt ? String(p.answeredAt) : '',
+    })
+  );
+  await writeCSV('progress.csv', progressRows);
+
+  const wrongRows = state.wrongBankIds.map((id) => ({ questionId: id }));
+  await writeCSV('wrong_bank.csv', wrongRows);
+
+  const favRows = state.favoritesIds.map((id) => ({ questionId: id }));
+  await writeCSV('favorites.csv', favRows);
+
+  const metaRows: MetadataCSVRow[] = [
+    { key: 'currentIndex', value: String(state.currentIndex) },
+    { key: 'isInWrongBank', value: String(state.isInWrongBank) },
+    { key: 'totalQuestions', value: String(state.questions.length) },
+    { key: 'lastOpened', value: new Date().toISOString() },
+  ];
+  await writeCSV('metadata.csv', metaRows);
+}
+
+function serializeSave() {
+  if (_isSaving) {
+    _needsSave = true;
+    return;
+  }
+  _isSaving = true;
+  performSave(useAppStore.getState())
+    .then(() => {
+      if (_needsSave) {
+        _needsSave = false;
+        return performSave(useAppStore.getState());
+      }
+    })
+    .catch((e) => console.error('CSV save failed:', e))
+    .finally(() => {
+      _isSaving = false;
+    });
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   questions: [],
   progressMap: {},
@@ -73,6 +135,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadQuestionsFromMarkdown: async (markdown: string) => {
     const questions = parseMarkdownToQuestions(markdown);
+    if (questions.length === 0) {
+      get().showToast('题库为空，请检查格式');
+      return;
+    }
     const progressMap: Record<string, Progress> = {};
     questions.forEach((q) => {
       progressMap[q.id] = {
@@ -91,7 +157,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       isInWrongBank: false,
       currentMode: 'question',
     });
-    await get().saveToCSV();
+    serializeSave();
     get().showToast(`导入成功，共 ${questions.length} 题`);
   },
 
@@ -99,19 +165,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     await ensureDataDir();
 
     const questionRows = await readCSV<QuestionCSVRow>('questions.csv');
-    const questions: Question[] = questionRows.map((row) => ({
-      id: row.id,
-      index: parseInt(row.index),
-      title: row.title,
-      content: row.content,
-      options: row.options.split('|').map((opt) => {
-        const [label, ...textParts] = opt.split(':');
-        return { label, text: textParts.join(':') };
-      }),
-      answer: row.answer,
-      explanation: row.explanation,
-      type: row.type as 'single' | 'multi',
-    }));
+    const questions: Question[] = questionRows.map((row) => {
+      let options: { label: string; text: string }[];
+      try {
+        const parsed = JSON.parse(row.options);
+        if (Array.isArray(parsed)) {
+          options = parsed;
+        } else {
+          throw new Error('Not an array');
+        }
+      } catch {
+        options = row.options.split('|').map((opt) => {
+          const [label, ...textParts] = opt.split(':');
+          return { label, text: textParts.join(':') };
+        });
+      }
+      return {
+        id: row.id,
+        index: parseInt(row.index),
+        title: row.title,
+        content: row.content,
+        options,
+        answer: row.answer,
+        explanation: row.explanation,
+        type: row.type as 'single' | 'multi',
+      };
+    });
 
     const progressRows = await readCSV<ProgressCSVRow>('progress.csv');
     const progressMap: Record<string, Progress> = {};
@@ -147,44 +226,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   saveToCSV: async () => {
-    await ensureDataDir();
-    const state = get();
-
-    const questionRows: QuestionCSVRow[] = state.questions.map((q) => ({
-      id: q.id,
-      index: String(q.index),
-      title: q.title,
-      content: q.content,
-      options: q.options.map((o) => `${o.label}:${o.text}`).join('|'),
-      answer: q.answer,
-      explanation: q.explanation,
-      type: q.type,
-    }));
-    await writeCSV('questions.csv', questionRows);
-
-    const progressRows: ProgressCSVRow[] = Object.values(state.progressMap).map(
-      (p) => ({
-        questionId: p.questionId,
-        selected: p.selected.join('|'),
-        status: p.status,
-        answeredAt: p.answeredAt ? String(p.answeredAt) : '',
-      })
-    );
-    await writeCSV('progress.csv', progressRows);
-
-    const wrongRows = state.wrongBankIds.map((id) => ({ questionId: id }));
-    await writeCSV('wrong_bank.csv', wrongRows);
-
-    const favRows = state.favoritesIds.map((id) => ({ questionId: id }));
-    await writeCSV('favorites.csv', favRows);
-
-    const metaRows: MetadataCSVRow[] = [
-      { key: 'currentIndex', value: String(state.currentIndex) },
-      { key: 'isInWrongBank', value: String(state.isInWrongBank) },
-      { key: 'totalQuestions', value: String(state.questions.length) },
-      { key: 'lastOpened', value: new Date().toISOString() },
-    ];
-    await writeCSV('metadata.csv', metaRows);
+    serializeSave();
   },
 
   selectOption: (questionId: string, label: string) => {
@@ -208,7 +250,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         [questionId]: { ...progress, selected: newSelected },
       },
     });
-    get().saveToCSV();
+    serializeSave();
   },
 
   submitAnswer: (questionId: string) => {
@@ -249,7 +291,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
       wrongBankIds: newWrongBankIds,
     });
-    get().saveToCSV();
+    serializeSave();
 
     if (status === 'correct') {
       setTimeout(() => get().goToNext(), 800);
@@ -260,7 +302,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { currentIndex } = get();
     if (currentIndex > 0) {
       set({ currentIndex: currentIndex - 1, currentMode: 'question' });
-      get().saveToCSV();
+      serializeSave();
     }
   },
 
@@ -269,13 +311,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const list = get().getCurrentQuestions();
     if (currentIndex < list.length - 1) {
       set({ currentIndex: currentIndex + 1, currentMode: 'question' });
-      get().saveToCSV();
+      serializeSave();
     } else {
-      const allAnswered = get()
-        .getCurrentQuestions()
-        .every((q) => get().progressMap[q.id]?.status !== 'unanswered');
+      const allAnswered = list.every(
+        (q) => get().progressMap[q.id]?.status !== 'unanswered'
+      );
       if (allAnswered) {
         set({ showSummary: true });
+      } else {
+        get().showToast('还有题目未完成');
       }
     }
   },
@@ -288,7 +332,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         currentMode: 'question',
         isProgressBoardExpanded: false,
       });
-      get().saveToCSV();
+      serializeSave();
     }
   },
 
@@ -303,7 +347,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       ? favoritesIds.filter((id) => id !== questionId)
       : [...favoritesIds, questionId];
     set({ favoritesIds: newFavorites });
-    get().saveToCSV();
+    serializeSave();
   },
 
   toggleProgressBoard: () => {
@@ -318,12 +362,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
     set({ isInWrongBank: true, currentIndex: 0, currentMode: 'question' });
-    get().saveToCSV();
+    serializeSave();
   },
 
   exitWrongBank: () => {
     set({ isInWrongBank: false, currentIndex: 0, currentMode: 'question' });
-    get().saveToCSV();
+    serializeSave();
   },
 
   resetAll: () => {
@@ -345,7 +389,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       isInWrongBank: false,
       showSummary: false,
     });
-    get().saveToCSV();
+    serializeSave();
   },
 
   showToast: (message: string) => {

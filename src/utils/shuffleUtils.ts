@@ -13,7 +13,7 @@ export function shuffleArray<T>(array: T[]): T[] {
 export function shuffleQuestionOptions(question: Question): Question {
   const indexedOptions = question.options.map((opt, index) => ({
     ...opt,
-    originalIndex: index,
+    originalIndex: opt.originalIndex ?? index,
   }));
 
   const shuffled = shuffleArray(indexedOptions);

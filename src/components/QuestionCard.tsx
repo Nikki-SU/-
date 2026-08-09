@@ -141,6 +141,7 @@ export default function QuestionCard() {
                 selected={progress?.selected || []}
                 status={status}
                 locked={isLocked}
+                question={question}
               />
             ))}
           </View>

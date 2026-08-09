@@ -25,7 +25,7 @@ import {
   extractZipFiles,
 } from '../utils/zipUtils';
 import { parseMarkdownWithValidation, parseMarkdownToQuestions, type ParseError } from '../utils/markdownParser';
-import { shuffleQuestionOptions, shuffleAllQuestions, mapSelectionToOriginal, getDisplayAnswer } from '../utils/shuffleUtils';
+import { shuffleQuestionOptions, shuffleAllQuestions, shuffleArray, mapSelectionToOriginal, getDisplayAnswer } from '../utils/shuffleUtils';
 import { exportBothFiles } from '../utils/exportUtils';
 import type {
   Question,
@@ -75,14 +75,19 @@ interface BankIndexRow {
 }
 
 function initQuestionWithShuffled(q: Question): Question {
-  const optionsWithIndex = q.options.map((opt, idx) => ({
+  const indexed = q.options.map((opt, idx) => ({
     ...opt,
-    originalIndex: idx,
+    originalIndex: opt.originalIndex ?? idx,
+  }));
+  const shuffled = shuffleArray(indexed);
+  const relabeled = shuffled.map((opt, newIdx) => ({
+    ...opt,
+    label: String.fromCharCode(65 + newIdx),
   }));
   return {
     ...q,
-    options: optionsWithIndex,
-    shuffledOptions: optionsWithIndex,
+    options: relabeled,
+    shuffledOptions: relabeled,
   };
 }
 
@@ -105,18 +110,31 @@ async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: str
         try {
           const parsed = JSON.parse(q.options);
           if (Array.isArray(parsed)) {
-            options = parsed.map((opt, idx) => ({ ...opt, originalIndex: idx }));
+            options = parsed.map((opt, idx) => ({ ...opt, originalIndex: opt.originalIndex ?? idx }));
           } else {
             throw new Error('Not an array');
           }
         } catch {
           options = q.options.split('|').map((opt, idx) => {
-            const colonIdx = opt.indexOf(':');
-            return {
-              label: opt.substring(0, colonIdx),
-              text: opt.substring(colonIdx + 1),
-              originalIndex: idx,
-            };
+            const parts = opt.split(':');
+            let label: string;
+            let text: string;
+            let originalIndex: number;
+            if (parts.length >= 3) {
+              label = parts[0];
+              originalIndex = parseInt(parts[parts.length - 1], 10);
+              text = parts.slice(1, -1).join(':');
+              if (isNaN(originalIndex)) {
+                text = parts.slice(1).join(':');
+                originalIndex = idx;
+              }
+            } else {
+              const colonIdx = opt.indexOf(':');
+              label = opt.substring(0, colonIdx);
+              text = opt.substring(colonIdx + 1);
+              originalIndex = idx;
+            }
+            return { label, text, originalIndex };
           });
         }
         const question: Question = {
@@ -258,7 +276,7 @@ async function fileSyncSaveAll(state: ReturnType<typeof useAppStore.getState>) {
         index: String(q.index),
         title: q.title,
         content: q.content,
-        options: q.options.map((o) => `${o.label}:${o.text}`).join('|'),
+        options: q.options.map((o) => `${o.label}:${o.text}:${o.originalIndex}`).join('|'),
         answer: q.answer,
         explanation: q.explanation,
         type: q.type,
@@ -380,7 +398,7 @@ async function performSave(state: ReturnType<typeof useAppStore.getState>) {
     index: String(q.index),
     title: q.title,
     content: q.content,
-    options: q.options.map((o) => `${o.label}:${o.text}`).join('|'),
+    options: q.options.map((o) => `${o.label}:${o.text}:${o.originalIndex}`).join('|'),
     answer: q.answer,
     explanation: q.explanation,
     type: q.type,
@@ -778,14 +796,31 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         const parsed = JSON.parse(row.options);
         if (Array.isArray(parsed)) {
-          options = parsed.map((opt, idx) => ({ ...opt, originalIndex: idx }));
+          options = parsed.map((opt, idx) => ({ ...opt, originalIndex: opt.originalIndex ?? idx }));
         } else {
           throw new Error('Not an array');
         }
       } catch {
         options = row.options.split('|').map((opt, idx) => {
-          const [label, ...textParts] = opt.split(':');
-          return { label, text: textParts.join(':'), originalIndex: idx };
+          const parts = opt.split(':');
+          let label: string;
+          let text: string;
+          let originalIndex: number;
+          if (parts.length >= 3) {
+            label = parts[0];
+            originalIndex = parseInt(parts[parts.length - 1], 10);
+            text = parts.slice(1, -1).join(':');
+            if (isNaN(originalIndex)) {
+              text = parts.slice(1).join(':');
+              originalIndex = idx;
+            }
+          } else {
+            const colonIdx = opt.indexOf(':');
+            label = opt.substring(0, colonIdx);
+            text = opt.substring(colonIdx + 1);
+            originalIndex = idx;
+          }
+          return { label, text, originalIndex };
         });
       }
       const question: Question = {
@@ -991,19 +1026,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       ? progress.selectedOriginalIndexes
       : mapSelectionToOriginal(progress.selected, question);
 
+    const displayAnswer = getDisplayAnswer(question);
+    const correctLabels = displayAnswer.split('');
+    const selectedLabels = progress.selected;
+
     let status: AnswerStatus;
-    if (selectedIndexes.length === 0) {
+    if (selectedLabels.length === 0) {
       status = 'unanswered';
     } else if (question.type === 'single') {
-      status = selectedIndexes[0] === correctIndexes[0] ? 'correct' : 'wrong';
+      status = selectedLabels[0] === correctLabels[0] ? 'correct' : 'wrong';
     } else {
-      const correctSet = new Set(correctIndexes);
-      const hasWrong = selectedIndexes.some((idx) => !correctSet.has(idx));
-      const isSubset = selectedIndexes.every((idx) => correctSet.has(idx));
-      const isEqual = selectedIndexes.length === correctIndexes.length && isSubset;
+      const correctSet = new Set(correctLabels);
+      const hasWrong = selectedLabels.some((s) => !correctSet.has(s));
+      const isSubset = selectedLabels.every((s) => correctSet.has(s));
+      const isEqual = selectedLabels.length === correctLabels.length && isSubset;
       if (isEqual) status = 'correct';
       else if (hasWrong) status = 'wrong';
-      else if (isSubset && selectedIndexes.length < correctIndexes.length) status = 'partial';
+      else if (isSubset && selectedLabels.length < correctLabels.length) status = 'partial';
       else status = 'wrong';
     }
 
@@ -1698,7 +1737,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         index: String(q.index),
         title: q.title,
         content: q.content,
-        options: q.options.map((o) => `${o.label}:${o.text}`).join('|'),
+        options: q.options.map((o) => `${o.label}:${o.text}:${o.originalIndex}`).join('|'),
         answer: q.answer,
         explanation: q.explanation,
         type: q.type,
@@ -1864,18 +1903,31 @@ export const useAppStore = create<AppState>((set, get) => ({
             try {
               const parsed = JSON.parse(q.options);
               if (Array.isArray(parsed)) {
-                options = parsed.map((opt, idx) => ({ ...opt, originalIndex: idx }));
+                options = parsed.map((opt, idx) => ({ ...opt, originalIndex: opt.originalIndex ?? idx }));
               } else {
                 throw new Error('Not an array');
               }
             } catch {
               options = q.options.split('|').map((opt, idx) => {
-                const colonIdx = opt.indexOf(':');
-                return {
-                  label: opt.substring(0, colonIdx),
-                  text: opt.substring(colonIdx + 1),
-                  originalIndex: idx,
-                };
+                const parts = opt.split(':');
+                let label: string;
+                let text: string;
+                let originalIndex: number;
+                if (parts.length >= 3) {
+                  label = parts[0];
+                  originalIndex = parseInt(parts[parts.length - 1], 10);
+                  text = parts.slice(1, -1).join(':');
+                  if (isNaN(originalIndex)) {
+                    text = parts.slice(1).join(':');
+                    originalIndex = idx;
+                  }
+                } else {
+                  const colonIdx = opt.indexOf(':');
+                  label = opt.substring(0, colonIdx);
+                  text = opt.substring(colonIdx + 1);
+                  originalIndex = idx;
+                }
+                return { label, text, originalIndex };
               });
             }
             const question: Question = {

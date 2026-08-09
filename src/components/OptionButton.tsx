@@ -2,8 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 import { getOptionColor } from '../utils/answerChecker';
+import { getDisplayAnswer } from '../utils/shuffleUtils';
 import { useAppStore } from '../stores/useAppStore';
-import type { AnswerStatus, ColorType } from '../types';
+import type { AnswerStatus, ColorType, Question } from '../types';
 
 const COLOR_MAP: Record<ColorType, { bg: string; border: string; text: string }> = {
   gray: { bg: '#F5F5F5', border: '#E0E0E0', text: '#666666' },
@@ -21,6 +22,7 @@ interface OptionButtonProps {
   selected: string[];
   status: AnswerStatus;
   locked?: boolean;
+  question?: Question;
 }
 
 export default function OptionButton({
@@ -31,10 +33,12 @@ export default function OptionButton({
   selected,
   status,
   locked = false,
+  question,
 }: OptionButtonProps) {
   const selectOption = useAppStore((state) => state.selectOption);
 
-  const color = getOptionColor(label, selected, correctAnswer, status);
+  const displayAnswer = question ? getDisplayAnswer(question) : correctAnswer;
+  const color = getOptionColor(label, selected, displayAnswer, status);
   const colors = COLOR_MAP[color];
   const isDisabled = locked || status === 'locked' || status === 'correct' || status === 'wrong' || status === 'partial';
 

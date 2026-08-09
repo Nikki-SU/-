@@ -8,6 +8,7 @@ let _basePath: string | null = null;
 const DEFAULT_DIR_NAME = 'quiz_app_data';
 const STORAGE_KEY_PATH = 'quiz_app_storage_path';
 const STORAGE_KEY_INIT = 'quiz_app_initialized';
+const STORAGE_KEY_LS_PREFIX = 'quiz_app_file_';
 
 function isWeb(): boolean {
   return typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -15,7 +16,7 @@ function isWeb(): boolean {
 
 export function isFileSystemAccessSupported(): boolean {
   if (!isWeb()) return false;
-  return typeof (window as any).showDirectoryPicker === 'function';
+  return typeof (window as any).showDirectoryPicker === 'function' || !!getDataPath();
 }
 
 export async function setDataPath(path: string): Promise<void> {
@@ -145,13 +146,20 @@ export async function autoRestoreDirectory(): Promise<boolean> {
   const path = getDataPath();
   if (!path) return false;
   
+  // If using localStorage fallback (no FileSystem Access API)
+  if (!(window as any).showDirectoryPicker) {
+    _basePath = path;
+    return true;
+  }
+  
   try {
     const handle = await loadDirHandleFromIDDB();
     if (handle) {
       _dirHandle = handle;
       return true;
     }
-    return false;
+    // If we have a path but no handle, still return true for localStorage mode
+    return true;
   } catch {
     return false;
   }
@@ -159,28 +167,45 @@ export async function autoRestoreDirectory(): Promise<boolean> {
 
 async function writeFileWeb(filename: string, content: string): Promise<void> {
   if (!isWeb()) return;
-  if (!isFileSystemAccessSupported()) return;
-
-  const handle = await getDirHandle();
-  if (!handle) throw new Error('NO_DIRECTORY');
-
-  const fileHandle = await handle.getFileHandle(filename, { create: true });
-  const writable = await fileHandle.createWritable();
-  await writable.write(content);
-  await writable.close();
+  
+  if (isFileSystemAccessSupported() && (window as any).showDirectoryPicker) {
+    try {
+      const handle = await getDirHandle();
+      if (handle) {
+        const fileHandle = await handle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(content);
+        await writable.close();
+        return;
+      }
+    } catch {}
+  }
+  
+  // Fallback to localStorage
+  try {
+    localStorage.setItem(STORAGE_KEY_LS_PREFIX + filename, content);
+  } catch (e) {
+    console.warn('localStorage write failed:', e);
+  }
 }
 
 async function readFileWeb(filename: string): Promise<string | null> {
   if (!isWeb()) return null;
-  if (!isFileSystemAccessSupported()) return null;
-
-  const handle = await getDirHandle();
-  if (!handle) return null;
-
+  
+  if (isFileSystemAccessSupported() && (window as any).showDirectoryPicker) {
+    try {
+      const handle = await getDirHandle();
+      if (handle) {
+        const fileHandle = await handle.getFileHandle(filename);
+        const file = await fileHandle.getFile();
+        return await file.text();
+      }
+    } catch {}
+  }
+  
+  // Fallback to localStorage
   try {
-    const fileHandle = await handle.getFileHandle(filename);
-    const file = await fileHandle.getFile();
-    return await file.text();
+    return localStorage.getItem(STORAGE_KEY_LS_PREFIX + filename);
   } catch {
     return null;
   }
@@ -188,13 +213,20 @@ async function readFileWeb(filename: string): Promise<string | null> {
 
 async function removeFileWeb(filename: string): Promise<void> {
   if (!isWeb()) return;
-  if (!isFileSystemAccessSupported()) return;
-
-  const handle = await getDirHandle();
-  if (!handle) return;
-
+  
+  if (isFileSystemAccessSupported() && (window as any).showDirectoryPicker) {
+    try {
+      const handle = await getDirHandle();
+      if (handle) {
+        await handle.removeEntry(filename);
+        return;
+      }
+    } catch {}
+  }
+  
+  // Fallback to localStorage
   try {
-    await handle.removeEntry(filename);
+    localStorage.removeItem(STORAGE_KEY_LS_PREFIX + filename);
   } catch {}
 }
 
@@ -344,16 +376,31 @@ export function clearDirHandle(): void {
 
 export async function listAllFiles(): Promise<string[]> {
   if (!isWeb()) return [];
-  if (!isFileSystemAccessSupported()) return [];
-
-  const handle = await getDirHandle();
-  if (!handle) return [];
-
-  const files: string[] = [];
+  
+  if (isFileSystemAccessSupported() && (window as any).showDirectoryPicker) {
+    try {
+      const handle = await getDirHandle();
+      if (handle) {
+        const files: string[] = [];
+        for await (const [name] of (handle as any).entries()) {
+          files.push(name);
+        }
+        return files;
+      }
+    } catch {}
+  }
+  
+  // Fallback to localStorage
   try {
-    for await (const [name] of (handle as any).entries()) {
-      files.push(name);
+    const files: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(STORAGE_KEY_LS_PREFIX)) {
+        files.push(key.slice(STORAGE_KEY_LS_PREFIX.length));
+      }
     }
-  } catch {}
-  return files;
+    return files;
+  } catch {
+    return [];
+  }
 }

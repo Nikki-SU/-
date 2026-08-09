@@ -84,6 +84,7 @@ function questionToCSVRow(q: Question, progress?: Progress): QuestionCSVRow {
   const status = progress?.status || 'unanswered';
   const answered = progress && progress.status !== 'unanswered' ? 'true' : 'false';
   const round = progress?.round ?? 0;
+  const selectedContents = progress?.selectedContents || [];
 
   return {
     index: String(q.index),
@@ -100,6 +101,7 @@ function questionToCSVRow(q: Question, progress?: Progress): QuestionCSVRow {
     是否已答: answered,
     答题状态: status,
     轮次: String(round),
+    已选内容: selectedContents.join('|||'),
   };
 }
 
@@ -184,11 +186,18 @@ async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: str
         const csvRow = csvQuestions.find(r => String(r.index) === String(q.index));
         const status = csvRow?.答题状态 as AnswerStatus || 'unanswered';
         const round = csvRow?.轮次 ? parseInt(csvRow.轮次) : 0;
+        const selectedContents = csvRow?.已选内容 ? csvRow.已选内容.split('|||').filter(Boolean) : [];
+        
+        // 根据 selectedContents 和当前打乱的选项重新计算 selected 标签
+        const selected = selectedContents.map((content) => {
+          const opt = q.options.find(o => o.text === content.trim());
+          return opt ? opt.label : '';
+        }).filter(Boolean);
         
         progressMap[q.id] = {
           questionId: q.id,
-          selected: [],
-          selectedContents: [],
+          selected,
+          selectedContents,
           status,
           locked: status !== 'unanswered',
           round,
@@ -423,6 +432,7 @@ async function performSave(state: ReturnType<typeof useAppStore.getState>) {
     const status = progress?.status || 'unanswered';
     const answered = progress && progress.status !== 'unanswered' ? 'true' : 'false';
     const round = progress?.round ?? 0;
+    const selectedContents = progress?.selectedContents || [];
     return {
       index: String(q.index),
       题干: q.content,
@@ -438,6 +448,7 @@ async function performSave(state: ReturnType<typeof useAppStore.getState>) {
       是否已答: answered,
       答题状态: status,
       轮次: String(round),
+      已选内容: selectedContents.join('|||'),
     };
   });
   await writeCSV('questions.csv', questionRows);
@@ -917,7 +928,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (progress.round !== wrongBankRound) {
         return;
       }
-      if (progress.status === 'locked') {
+      if (progress.status !== 'unanswered') {
         return;
       }
     }
@@ -975,7 +986,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     
     if (isInWrongBank) {
       if (progress.round !== wrongBankRound) return;
-      if (progress.status === 'locked') return;
+      if (progress.status !== 'unanswered') return;
     }
 
     const newProgress = {
@@ -1028,7 +1039,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (progress.round !== undefined && progress.round !== wrongBankRound) {
         return;
       }
-      if (progress.status === 'locked') return;
+      if (progress.status !== 'unanswered') return;
     }
 
     const userSelectedContents = progress.selectedContents;
@@ -1071,7 +1082,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         serializeSave();
         return;
       } else {
-        newProgress.status = 'locked';
         set({
           progressMap: {
             ...progressMap,
@@ -1126,7 +1136,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     
     const allAnsweredInRound = wrongBankIds.every((id) => {
       const p = progressMap[id];
-      return p && p.round === wrongBankRound && p.status === 'locked';
+      return p && p.round === wrongBankRound && p.status !== 'unanswered';
     });
 
     if (allAnsweredInRound && wrongBankIds.length > 0) {
@@ -1141,7 +1151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     wrongBankIds.forEach((id) => {
       const p = newProgressMap[id];
-      if (p && p.status === 'locked') {
+      if (p && p.status !== 'unanswered') {
         newProgressMap[id] = {
           ...p,
           status: 'unanswered',

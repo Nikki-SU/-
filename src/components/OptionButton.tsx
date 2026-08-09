@@ -48,7 +48,7 @@ export default function OptionButton({
     status
   );
   const colors = COLOR_MAP[color];
-  const isDisabled = locked || status === 'locked' || status === 'correct' || status === 'wrong' || status === 'partial';
+  const isDisabled = locked || status !== 'unanswered';
 
   const handlePress = () => {
     if (!isDisabled) {

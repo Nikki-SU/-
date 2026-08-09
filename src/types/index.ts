@@ -56,6 +56,7 @@ export interface QuestionCSVRow {
   是否已答: string;
   答题状态: string;
   轮次: string;
+  已选内容: string;
 }
 
 export interface ProgressCSVRow {

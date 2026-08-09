@@ -13,7 +13,7 @@ export function parseCSV<T>(csvString: string): T[] {
       if (val.startsWith('"') && val.endsWith('"')) {
         val = val.slice(1, -1).replace(/""/g, '"');
       }
-      obj[h] = val.replace(/\\\|/g, '|');
+      obj[h] = val;
     });
     return obj as T;
   });
@@ -44,8 +44,7 @@ export function stringifyCSV<T extends Record<string, any>>(data: T[]): string {
     headers
       .map((h) => {
         let val = String(obj[h] || '');
-        val = val.replace(/\|/g, '\\|');
-        if (val.includes(',') || val.includes('"') || val.includes('|')) {
+        if (val.includes(',') || val.includes('"') || val.includes('\n')) {
           val = `"${val.replace(/"/g, '""')}"`;
         }
         return val;

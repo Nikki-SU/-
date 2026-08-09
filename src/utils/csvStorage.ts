@@ -1,56 +1,97 @@
 import { writeFile, readFile, downloadFile } from './fileStorage';
 
 export function parseCSV<T>(csvString: string): T[] {
-  const lines = csvString.trim().split('\n');
-  if (lines.length < 2) return [];
-
-  const headers = parseCSVLine(lines[0]);
-  return lines.slice(1).map((line) => {
-    const values = parseCSVLine(line);
-    const obj: any = {};
-    headers.forEach((h, i) => {
-      let val = values[i] || '';
-      if (val.startsWith('"') && val.endsWith('"')) {
-        val = val.slice(1, -1).replace(/""/g, '"');
+  if (!csvString || !csvString.trim()) return [];
+  
+  const records: string[][] = [];
+  let currentRecord: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+  let i = 0;
+  
+  while (i < csvString.length) {
+    const char = csvString[i];
+    
+    if (inQuotes) {
+      if (char === '"') {
+        if (i + 1 < csvString.length && csvString[i + 1] === '"') {
+          currentField += '"';
+          i += 2;
+          continue;
+        } else {
+          inQuotes = false;
+          i++;
+          continue;
+        }
+      } else {
+        currentField += char;
+        i++;
+        continue;
       }
-      obj[h] = val;
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+        i++;
+        continue;
+      } else if (char === ',') {
+        currentRecord.push(currentField);
+        currentField = '';
+        i++;
+        continue;
+      } else if (char === '\n') {
+        currentRecord.push(currentField);
+        currentField = '';
+        if (currentRecord.length > 0 || csvString[i + 1] !== undefined) {
+          records.push(currentRecord);
+          currentRecord = [];
+        }
+        i++;
+        continue;
+      } else if (char === '\r') {
+        i++;
+        continue;
+      } else {
+        currentField += char;
+        i++;
+        continue;
+      }
+    }
+  }
+  
+  if (currentField.length > 0 || currentRecord.length > 0) {
+    currentRecord.push(currentField);
+    records.push(currentRecord);
+  }
+  
+  if (records.length === 0) return [];
+  
+  const headers = records[0];
+  return records.slice(1).filter(r => r.length > 0 || r.join('').trim()).map((values) => {
+    const obj: any = {};
+    headers.forEach((h, idx) => {
+      obj[h] = values[idx] || '';
     });
     return obj as T;
   });
 }
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (const char of line) {
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current);
-  return result;
-}
-
 export function stringifyCSV<T extends Record<string, any>>(data: T[]): string {
   if (data.length === 0) return '';
   const headers = Object.keys(data[0]);
+  
+  const escapeField = (val: string): string => {
+    if (val.includes(',') || val.includes('"') || val.includes('\n') || val.includes('\r')) {
+      return `"${val.replace(/"/g, '""')}"`;
+    }
+    return val;
+  };
+  
   const rows = data.map((obj) =>
     headers
-      .map((h) => {
-        let val = String(obj[h] || '');
-        if (val.includes(',') || val.includes('"') || val.includes('\n')) {
-          val = `"${val.replace(/"/g, '""')}"`;
-        }
-        return val;
-      })
+      .map((h) => escapeField(String(obj[h] ?? '')))
       .join(',')
   );
+  
   return [headers.join(','), ...rows].join('\n');
 }
 

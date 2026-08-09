@@ -74,6 +74,49 @@ interface BankIndexRow {
   created: string;
 }
 
+function parseOptionsFromString(optionsStr: string): { label: string; text: string; originalIndex: number }[] {
+  if (!optionsStr) return [];
+  
+  try {
+    const parsed = JSON.parse(optionsStr);
+    if (Array.isArray(parsed)) {
+      return parsed.map((opt: any, idx: number) => ({
+        label: opt.label || String.fromCharCode(65 + idx),
+        text: opt.text || '',
+        originalIndex: opt.originalIndex ?? idx
+      }));
+    }
+  } catch {
+    // JSON parse failed, try legacy format
+  }
+  
+  // Legacy format: A:text:index|B:text:index|...
+  return optionsStr.split('|').filter(s => s.trim()).map((opt, idx) => {
+    const parts = opt.split(':');
+    let label: string;
+    let text: string;
+    let originalIndex: number;
+    if (parts.length >= 3) {
+      label = parts[0];
+      originalIndex = parseInt(parts[parts.length - 1], 10);
+      text = parts.slice(1, -1).join(':');
+      if (isNaN(originalIndex)) {
+        text = parts.slice(1).join(':');
+        originalIndex = idx;
+      }
+    } else if (parts.length === 2) {
+      label = parts[0];
+      text = parts[1];
+      originalIndex = idx;
+    } else {
+      label = String.fromCharCode(65 + idx);
+      text = opt;
+      originalIndex = idx;
+    }
+    return { label: label.trim(), text: text.trim(), originalIndex };
+  });
+}
+
 function initQuestionWithShuffled(q: Question): Question {
   const indexed = q.options.map((opt, idx) => ({
     ...opt,
@@ -106,37 +149,7 @@ async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: str
       const favRows = await readCSV<{ questionId: string }>(`bank_${row.id}_favorites.csv`);
 
       const parsedQuestions: Question[] = questions.map((q) => {
-        let options: { label: string; text: string; originalIndex: number }[];
-        try {
-          const parsed = JSON.parse(q.options);
-          if (Array.isArray(parsed)) {
-            options = parsed.map((opt, idx) => ({ ...opt, originalIndex: opt.originalIndex ?? idx }));
-          } else {
-            throw new Error('Not an array');
-          }
-        } catch {
-          options = q.options.split('|').map((opt, idx) => {
-            const parts = opt.split(':');
-            let label: string;
-            let text: string;
-            let originalIndex: number;
-            if (parts.length >= 3) {
-              label = parts[0];
-              originalIndex = parseInt(parts[parts.length - 1], 10);
-              text = parts.slice(1, -1).join(':');
-              if (isNaN(originalIndex)) {
-                text = parts.slice(1).join(':');
-                originalIndex = idx;
-              }
-            } else {
-              const colonIdx = opt.indexOf(':');
-              label = opt.substring(0, colonIdx);
-              text = opt.substring(colonIdx + 1);
-              originalIndex = idx;
-            }
-            return { label, text, originalIndex };
-          });
-        }
+        const options = parseOptionsFromString(q.options);
         const question: Question = {
           id: q.id,
           index: parseInt(q.index) || 0,
@@ -224,7 +237,7 @@ function parseCSV<T>(csvString: string): T[] {
     headers.forEach((h, i) => {
       let val = values[i] || '';
       if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1).replace(/""/g, '"');
-      obj[h] = val.replace(/\\\|/g, '|');
+      obj[h] = val;
     });
     return obj as T;
   });
@@ -797,37 +810,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await ensureDataDir();
     const questionRows = await readCSV<QuestionCSVRow>('questions.csv');
     const questions: Question[] = questionRows.map((row) => {
-      let options: { label: string; text: string; originalIndex: number }[];
-      try {
-        const parsed = JSON.parse(row.options);
-        if (Array.isArray(parsed)) {
-          options = parsed.map((opt, idx) => ({ ...opt, originalIndex: opt.originalIndex ?? idx }));
-        } else {
-          throw new Error('Not an array');
-        }
-      } catch {
-        options = row.options.split('|').map((opt, idx) => {
-          const parts = opt.split(':');
-          let label: string;
-          let text: string;
-          let originalIndex: number;
-          if (parts.length >= 3) {
-            label = parts[0];
-            originalIndex = parseInt(parts[parts.length - 1], 10);
-            text = parts.slice(1, -1).join(':');
-            if (isNaN(originalIndex)) {
-              text = parts.slice(1).join(':');
-              originalIndex = idx;
-            }
-          } else {
-            const colonIdx = opt.indexOf(':');
-            label = opt.substring(0, colonIdx);
-            text = opt.substring(colonIdx + 1);
-            originalIndex = idx;
-          }
-          return { label, text, originalIndex };
-        });
-      }
+      const options = parseOptionsFromString(row.options);
       const question: Question = {
         id: row.id,
         index: parseInt(row.index),
@@ -1906,37 +1889,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           const completedRows = await readCSV<{ questionId: string }>(`bank_${row.id}_completed.csv`);
 
           const parsedQuestions: Question[] = questions.map((q) => {
-            let options: { label: string; text: string; originalIndex: number }[];
-            try {
-              const parsed = JSON.parse(q.options);
-              if (Array.isArray(parsed)) {
-                options = parsed.map((opt, idx) => ({ ...opt, originalIndex: opt.originalIndex ?? idx }));
-              } else {
-                throw new Error('Not an array');
-              }
-            } catch {
-              options = q.options.split('|').map((opt, idx) => {
-                const parts = opt.split(':');
-                let label: string;
-                let text: string;
-                let originalIndex: number;
-                if (parts.length >= 3) {
-                  label = parts[0];
-                  originalIndex = parseInt(parts[parts.length - 1], 10);
-                  text = parts.slice(1, -1).join(':');
-                  if (isNaN(originalIndex)) {
-                    text = parts.slice(1).join(':');
-                    originalIndex = idx;
-                  }
-                } else {
-                  const colonIdx = opt.indexOf(':');
-                  label = opt.substring(0, colonIdx);
-                  text = opt.substring(colonIdx + 1);
-                  originalIndex = idx;
-                }
-                return { label, text, originalIndex };
-              });
-            }
+            const options = parseOptionsFromString(q.options);
             const question: Question = {
               id: q.id,
               index: parseInt(q.index) || 0,

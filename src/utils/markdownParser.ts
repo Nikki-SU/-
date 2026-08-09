@@ -30,13 +30,13 @@ function findQuestionBoundaries(text: string): number[] {
     const trimmed = lines[i].trim();
 
     if (/^##\s+/.test(trimmed)) {
-      if (/题目|第.+题|Question|问题/.test(trimmed) || /^##\s+\d/.test(trimmed)) {
+      if (/题目|第.+题|Question|问题|化学/.test(trimmed) || /^##\s+\d/.test(trimmed)) {
         header2Boundaries.push(i);
       }
     }
 
     if (/^#{1,3}\s+/.test(trimmed)) {
-      if (/题目|第.+题|Question|问题/.test(trimmed) || /^#{1,3}\s+\d/.test(trimmed) || header3Or1Boundaries.length === 0) {
+      if (/题目|第.+题|Question|问题|化学/.test(trimmed) || /^#{1,3}\s+\d/.test(trimmed) || header3Or1Boundaries.length === 0) {
         header3Or1Boundaries.push(i);
       }
     }
@@ -45,7 +45,10 @@ function findQuestionBoundaries(text: string): number[] {
       /^\*\*第.{0,5}题[：:)]/.test(trimmed) ||
       /^\*\*题目[：:]/.test(trimmed) ||
       /^\d+[、．.)]\s*\*\*/.test(trimmed) ||
-      /^\d+[、．.)]\s*[^\d]/.test(trimmed);
+      /^\d+[、．.)]\s*[^\d]/.test(trimmed) ||
+      /^\*\*\d+[、．.)]/.test(trimmed) ||
+      /^第\s*\d+\s*题/.test(trimmed) ||
+      /^\d+\.\s*\*\*第.{0,5}题/.test(trimmed);
 
     if (isFallbackStart) {
       const lastFallback = fallbackBoundaries[fallbackBoundaries.length - 1] ?? -10;
@@ -119,17 +122,19 @@ function extractContent(lines: string[]): string {
       continue;
     }
 
-    if (/答案[：:]/.test(trimmed) || /解析[：:]/.test(trimmed)) {
+    if (/^答案[：:]/.test(trimmed) || /^解析[：:]/.test(trimmed)) {
       inContent = false;
       continue;
     }
 
-    if (/^[A-F][、．.)\s]/.test(trimmed) || /^[A-F]\.\s/.test(trimmed)) {
+    if (/^[A-F][.．、)）]\s+/.test(trimmed) || 
+        /^\*\*[A-F]\*\*[.．、)）]\s+/.test(trimmed) ||
+        /^[A-F][.．、)）]\s*$/.test(trimmed)) {
       inContent = false;
       continue;
     }
 
-    if (inContent || !/^#{1,3}\s/.test(trimmed)) {
+    if (inContent || (!/^#{1,3}\s/.test(trimmed) && !/^\*\*/.test(trimmed))) {
       contentParts.push(trimmed);
     }
   }
@@ -138,27 +143,69 @@ function extractContent(lines: string[]): string {
 }
 
 function extractOptions(lines: string[]): { options: Option[]; labels: string[] } {
-  const optionRegexes = [
-    /^([A-F])[.．、)）\s]+(.+)$/,
-    /^\*\*([A-F])\*\*[.．、)）\s]+(.+)$/,
-  ];
-
+  const optionStartRegex = /^([A-F])[.．、)）\s]+(.+)$/;
+  const optionStartBoldRegex = /^\*\*([A-F])\*\*[.．、)）\s]+(.+)$/;
+  const optionLabelOnlyRegex = /^([A-F])[.．、)）]\s*$/;
+  
   const optionMap = new Map<string, string>();
+  let currentLabel: string | null = null;
+  let currentText: string[] = [];
+
+  const flushCurrentOption = () => {
+    if (currentLabel && currentText.length > 0) {
+      optionMap.set(currentLabel, currentText.join(' ').trim());
+      currentLabel = null;
+      currentText = [];
+    }
+  };
 
   for (const line of lines) {
     const trimmed = line.trim();
-    for (const regex of optionRegexes) {
-      const match = trimmed.match(regex);
-      if (match) {
-        const label = match[1];
-        const text = match[2].trim();
-        if (!optionMap.has(label)) {
-          optionMap.set(label, text);
-        }
-        break;
+    
+    if (!trimmed) {
+      if (currentLabel) {
+        flushCurrentOption();
+      }
+      continue;
+    }
+
+    let match = trimmed.match(optionStartBoldRegex);
+    if (match) {
+      flushCurrentOption();
+      currentLabel = match[1];
+      currentText = [match[2].trim()];
+      continue;
+    }
+
+    match = trimmed.match(optionStartRegex);
+    if (match) {
+      flushCurrentOption();
+      currentLabel = match[1];
+      currentText = [match[2].trim()];
+      continue;
+    }
+
+    match = trimmed.match(optionLabelOnlyRegex);
+    if (match) {
+      flushCurrentOption();
+      currentLabel = match[1];
+      currentText = [];
+      continue;
+    }
+
+    if (currentLabel) {
+      if (/^[A-F][.．、)）]\s+/.test(trimmed) || 
+          /^\*\*[A-F]\*\*[.．、)）]\s+/.test(trimmed) ||
+          /^答案[：:]/.test(trimmed) ||
+          /^解析[：:]/.test(trimmed)) {
+        flushCurrentOption();
+      } else {
+        currentText.push(trimmed);
       }
     }
   }
+  
+  flushCurrentOption();
 
   const labels = Array.from(optionMap.keys()).sort();
   const options: Option[] = labels.map((label, idx) => ({
@@ -171,33 +218,69 @@ function extractOptions(lines: string[]): { options: Option[]; labels: string[] 
 }
 
 function extractAnswer(lines: string[]): string {
+  const answerPatterns = [
+    /答案[：:]\s*\**\s*([A-F]+)/,
+    /答案[：:]\s*([A-F]+)/,
+    /参考答案[：:]\s*([A-F]+)/,
+    /正确答案[：:]\s*([A-F]+)/,
+  ];
+  
   for (const line of lines) {
     const trimmed = line.trim();
-    const match = trimmed.match(/答案[：:]\s*\**\s*([A-F]+)/);
-    if (match) {
-      return match[1].toUpperCase();
-    }
-    const match2 = trimmed.match(/答案[：:]\s*([A-F]+)/);
-    if (match2) {
-      return match2[1].toUpperCase();
+    for (const pattern of answerPatterns) {
+      const match = trimmed.match(pattern);
+      if (match) {
+        return match[1].toUpperCase();
+      }
     }
   }
   return '';
 }
 
 function extractExplanation(lines: string[]): string {
+  const explanationPatterns = [
+    /解析[：:]\s*\**\s*(.+)/,
+    /解析[：:]\s*(.+)/,
+    /答案解析[：:]\s*(.+)/,
+    /分析[：:]\s*(.+)/,
+    /详解[：:]\s*(.+)/,
+  ];
+  
+  const explanationParts: string[] = [];
+  let collectingExplanation = false;
+  
   for (const line of lines) {
     const trimmed = line.trim();
-    const match = trimmed.match(/解析[：:]\s*\**\s*(.+)/);
-    if (match) {
-      return match[1].trim();
+    
+    if (!trimmed) {
+      if (collectingExplanation && explanationParts.length > 0) {
+        explanationParts.push('');
+      }
+      continue;
     }
-    const match2 = trimmed.match(/解析[：:]\s*(.+)/);
-    if (match2) {
-      return match2[1].trim();
+    
+    if (!collectingExplanation) {
+      for (const pattern of explanationPatterns) {
+        const match = trimmed.match(pattern);
+        if (match) {
+          if (match[1]) {
+            explanationParts.push(match[1].trim());
+          }
+          collectingExplanation = true;
+          break;
+        }
+      }
+    } else {
+      if (/^[A-F][.．、)）]\s+/.test(trimmed) || 
+          /^\*\*[A-F]\*\*[.．、)）]\s+/.test(trimmed) ||
+          /^答案[：:]/.test(trimmed)) {
+        break;
+      }
+      explanationParts.push(trimmed);
     }
   }
-  return '暂无解析';
+  
+  return explanationParts.join(' ').trim() || '暂无解析';
 }
 
 export function parseMarkdownWithValidation(markdown: string): ParseResult {

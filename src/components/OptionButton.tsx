@@ -88,8 +88,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    minHeight: 0,
     paddingVertical: heightSmall.md,
     paddingHorizontal: small.md,
     marginVertical: heightSmall.sm,

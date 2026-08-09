@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: small.lg,
     paddingVertical: heightSmall.md,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   headerSection: {
     flexDirection: 'row',
@@ -202,9 +202,7 @@ const styles = StyleSheet.create({
     lineHeight: fontSizePercent((22 * 100) / 390),
   },
   optionsSection: {
-    flex: 1,
-    justifyContent: 'space-evenly',
-    minHeight: 0,
+    justifyContent: 'flex-start',
   },
   actionBar: {
     flexDirection: 'row',

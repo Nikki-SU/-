@@ -151,7 +151,12 @@ async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: str
       });
 
       const progressMap: Record<string, Progress> = {};
+      let maxRound = 0;
       progressRows.forEach((p) => {
+        const roundVal = p.round ? parseInt(p.round) : undefined;
+        if (roundVal !== undefined && roundVal > maxRound) {
+          maxRound = roundVal;
+        }
         progressMap[p.questionId] = {
           questionId: p.questionId,
           selected: p.selected ? p.selected.split('|') : [],
@@ -159,7 +164,7 @@ async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: str
           status: p.status as AnswerStatus,
           locked: p.locked === 'true',
           answeredAt: p.answeredAt ? parseInt(p.answeredAt) : undefined,
-          round: p.round ? parseInt(p.round) : undefined,
+          round: roundVal,
         };
       });
 
@@ -172,7 +177,7 @@ async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: str
         progressMap,
         wrongBankIds: wrongRows.map((r) => r.questionId),
         favoritesIds: favRows.map((r) => r.questionId),
-        wrongBankRound: 0,
+        wrongBankRound: maxRound,
         wrongBankCompletedIds: completedRows.map((r) => r.questionId),
         shuffledVersion: 0,
         created: parseInt(row.created) || Date.now(),
@@ -1017,7 +1022,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const isInWrongBank = get().isInWrongBank;
     if (isInWrongBank) {
-      if (progress.round !== wrongBankRound) return;
+      if (progress.round !== undefined && progress.round !== wrongBankRound) {
+        return;
+      }
       if (progress.status === 'locked') return;
     }
 

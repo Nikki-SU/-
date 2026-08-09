@@ -10,7 +10,7 @@ import QuestionCard from './src/components/QuestionCard';
 import BottomBar from './src/components/BottomBar';
 import HomePage from './src/components/HomePage';
 import Toast from './src/components/Toast';
-import { autoRestoreDirectory, hasInitializedPath, isFileSystemAccessSupported, setDataPath } from './src/utils/fileStorage';
+import { autoRestoreDirectory, hasInitializedPath, isFileSystemAccessSupported, setDataPath, clearOldLocalStorageData } from './src/utils/fileStorage';
 
 function AppContent() {
   const questions = useAppStore((state) => state.questions);
@@ -27,6 +27,8 @@ function AppContent() {
     const init = async () => {
       try {
         setIsLoading(true);
+        clearOldLocalStorageData();
+        
         const restored = await autoRestoreDirectory();
         if (restored) {
           await loadFromCSV();
@@ -34,21 +36,8 @@ function AppContent() {
           setNeedsSetup(true);
         } else {
           if (!isFileSystemAccessSupported()) {
-            await setDataPath('localStorage-fallback');
-            await loadFromCSV();
-            const store = useAppStore.getState();
-            if (!store.banks || store.banks.length === 0) {
-              try {
-                const demo1 = await fetch('/demo_bank1.md').then((r) => r.text());
-                await store.addBank('Demo题库1', demo1);
-                const demo2 = await fetch('/demo_bank2.md').then((r) => r.text()).catch(() => '');
-                if (demo2) {
-                  await store.addBank('Demo题库2', demo2);
-                }
-              } catch (e) {
-                console.warn('Failed to load demo banks:', e);
-              }
-            }
+            console.warn('FileSystem Access API not supported');
+            setNeedsSetup(true);
           } else {
             setNeedsSetup(true);
           }

@@ -312,8 +312,23 @@ export async function removeFile(filename: string): Promise<void> {
   }
 }
 
+export async function writeJSON(filename: string, data: any): Promise<void> {
+  await writeFile(filename, JSON.stringify(data));
+}
+
+export async function readJSON<T>(filename: string): Promise<T | null> {
+  const content = await readFile(filename);
+  if (!content) return null;
+  try {
+    return JSON.parse(content) as T;
+  } catch {
+    return null;
+  }
+}
+
 export async function removeBankFiles(bankId: string): Promise<void> {
   const files = [
+    `bank_${bankId}_questions.json`,
     `bank_${bankId}_questions.csv`,
     `bank_${bankId}_progress.csv`,
     `bank_${bankId}_wrong.csv`,

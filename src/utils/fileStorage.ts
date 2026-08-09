@@ -25,7 +25,35 @@ function isWeb(): boolean {
 
 export function isFileSystemAccessSupported(): boolean {
   if (!isWeb()) return false;
+  const testMode = isTestMode();
+  if (testMode) return true;
   return typeof (window as any).showDirectoryPicker === 'function';
+}
+
+export function isTestMode(): boolean {
+  if (!isWeb()) return false;
+  try {
+    return localStorage.getItem('__quiz_test_mode__') === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function enableTestMode(): void {
+  if (!isWeb()) return;
+  try {
+    localStorage.setItem('__quiz_test_mode__', 'true');
+    localStorage.setItem(STORAGE_KEY_PATH, 'test_local_storage');
+    localStorage.setItem(STORAGE_KEY_INIT, 'true');
+    _basePath = 'test_local_storage';
+  } catch {}
+}
+
+export function disableTestMode(): void {
+  if (!isWeb()) return;
+  try {
+    localStorage.removeItem('__quiz_test_mode__');
+  } catch {}
 }
 
 export function clearOldLocalStorageData(): void {
@@ -77,6 +105,10 @@ export function hasInitializedPath(): boolean {
 
 export async function selectWebDirectory(): Promise<string | null> {
   if (!isWeb()) return null;
+  if (isTestMode()) {
+    enableTestMode();
+    return 'test_local_storage';
+  }
   if (!isFileSystemAccessSupported()) return null;
 
   try {
@@ -166,6 +198,11 @@ async function getDirHandle(): Promise<FileSystemDirectoryHandle | null> {
 export async function autoRestoreDirectory(): Promise<boolean> {
   if (!isWeb()) return false;
 
+  if (isTestMode()) {
+    enableTestMode();
+    return true;
+  }
+
   const path = getDataPath();
   if (!path) return false;
 
@@ -198,6 +235,17 @@ async function ensureSubDirWeb(subDir: SubDirName): Promise<FileSystemDirectoryH
 async function writeFileWeb(filename: string, content: string, subDir?: SubDirName): Promise<void> {
   if (!isWeb()) return;
 
+  if (isTestMode()) {
+    const key = subDir ? `__quiz_fs__${subDir}__${filename}` : `__quiz_fs__${filename}`;
+    try {
+      localStorage.setItem(key, content);
+      return;
+    } catch (e) {
+      console.error('Test mode write failed:', e);
+      throw e;
+    }
+  }
+
   let handle: FileSystemDirectoryHandle | null;
   if (subDir) {
     handle = await ensureSubDirWeb(subDir);
@@ -221,6 +269,15 @@ async function writeFileWeb(filename: string, content: string, subDir?: SubDirNa
 async function readFileWeb(filename: string, subDir?: SubDirName): Promise<string | null> {
   if (!isWeb()) return null;
 
+  if (isTestMode()) {
+    const key = subDir ? `__quiz_fs__${subDir}__${filename}` : `__quiz_fs__${filename}`;
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
   let handle: FileSystemDirectoryHandle | null;
   if (subDir) {
     handle = await ensureSubDirWeb(subDir);
@@ -241,6 +298,14 @@ async function readFileWeb(filename: string, subDir?: SubDirName): Promise<strin
 
 async function removeFileWeb(filename: string, subDir?: SubDirName): Promise<void> {
   if (!isWeb()) return;
+
+  if (isTestMode()) {
+    const key = subDir ? `__quiz_fs__${subDir}__${filename}` : `__quiz_fs__${filename}`;
+    try {
+      localStorage.removeItem(key);
+      return;
+    } catch {}
+  }
 
   let handle: FileSystemDirectoryHandle | null;
   if (subDir) {
@@ -433,6 +498,21 @@ export function clearDirHandle(): void {
 export async function listAllFiles(subDir?: SubDirName): Promise<string[]> {
   if (!isWeb()) return [];
 
+  if (isTestMode()) {
+    const prefix = subDir ? `__quiz_fs__${subDir}__` : '__quiz_fs__';
+    const files: string[] = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          const fileName = key.slice(prefix.length);
+          files.push(fileName);
+        }
+      }
+    } catch {}
+    return files;
+  }
+
   let handle: FileSystemDirectoryHandle | null;
   if (subDir) {
     handle = await ensureSubDirWeb(subDir);
@@ -450,4 +530,18 @@ export async function listAllFiles(subDir?: SubDirName): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+export function clearTestModeData(): void {
+  if (!isWeb()) return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('__quiz_fs__')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  } catch {}
 }

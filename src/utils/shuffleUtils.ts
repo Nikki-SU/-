@@ -96,7 +96,7 @@ export function getOptionColorBasedOnContent(
     return isSelected && isCorrect ? 'green' : 'gray';
   }
 
-  if (status === 'wrong' || status === 'partial') {
+  if (status === 'wrong' || status === 'partial' || status === 'locked') {
     if (isSelected && isCorrect) return 'green';
     if (isSelected && isWrong) return 'red';
     if (!isSelected && isCorrect) return 'yellow';

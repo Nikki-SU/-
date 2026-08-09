@@ -184,9 +184,14 @@ async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: str
       const progressMap: Record<string, Progress> = {};
       questions.forEach((q) => {
         const csvRow = csvQuestions.find(r => String(r.index) === String(q.index));
-        const status = csvRow?.答题状态 as AnswerStatus || 'unanswered';
+        let status = csvRow?.答题状态 as AnswerStatus || 'unanswered';
         const round = csvRow?.轮次 ? parseInt(csvRow.轮次) : 0;
         const selectedContents = csvRow?.已选内容 ? csvRow.已选内容.split('|||').filter(Boolean) : [];
+        
+        // 如果状态是 'locked'，根据选中内容重新计算正确状态
+        if (status === 'locked' && selectedContents.length > 0) {
+          status = checkAnswerByContent(selectedContents, q.answerContent, q.type);
+        }
         
         // 根据 selectedContents 和当前打乱的选项重新计算 selected 标签
         const selected = selectedContents.map((content) => {

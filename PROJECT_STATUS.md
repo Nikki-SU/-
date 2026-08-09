@@ -175,31 +175,33 @@ D. 选项D
 
 ## 五、响应式布局方案
 
-### 5.1 当前实现
+### 5.1 当前实现（纯百分比方案）
 
 ```typescript
-// 基准设计稿：390px 宽度, 844px 高度
-const BASE_WIDTH = 390;
-const BASE_HEIGHT = 844;
+import { Dimensions } from 'react-native';
 
-// 宽度响应
-export const responsiveWidth = (w: number) => {
+// 宽度百分比
+export const widthPercent = (percent: number): number => {
   const { width } = Dimensions.get('window');
-  return (w / BASE_WIDTH) * width;
+  return (percent / 100) * width;
 };
 
-// 高度响应
-export const responsiveHeight = (h: number) => {
+// 高度百分比
+export const heightPercent = (percent: number): number => {
   const { height } = Dimensions.get('window');
-  return (h / BASE_HEIGHT) * height;
+  return (percent / 100) * height;
 };
 
-// 字体响应
-export const responsiveFontSize = (f: number) => {
+// 字体百分比
+export const fontSizePercent = (percent: number): number => {
   const { width } = Dimensions.get('window');
-  const scale = width / BASE_WIDTH;
-  return PixelRatio.roundToNearestPixel(f * scale);
+  return (percent / 100) * width;
 };
+
+// 预设尺寸
+export const small = { xs: widthPercent(1), sm: widthPercent(1.5), md: widthPercent(2), lg: widthPercent(3), xl: widthPercent(4) };
+export const fontSmall = { xs: fontSizePercent(2.5), sm: fontSizePercent(3), md: fontSizePercent(3.5), lg: fontSizePercent(4), xl: fontSizePercent(5) };
+export const heightSmall = { xs: heightPercent(0.5), sm: heightPercent(1), md: heightPercent(1.5), lg: heightPercent(2), xl: heightPercent(3) };
 ```
 
 ### 5.2 使用示例
@@ -208,21 +210,26 @@ export const responsiveFontSize = (f: number) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: responsiveWidth(16),  // 不是硬编码 16
-    paddingVertical: responsiveHeight(12),    // 不是硬编码 12
+    paddingHorizontal: widthPercent(3),  // 屏幕宽度的 3%
+    paddingVertical: heightPercent(2),   // 屏幕高度的 2%
   },
   title: {
-    fontSize: responsiveFontSize(18),         // 不是硬编码 18
+    fontSize: fontSizePercent(4),        // 屏幕宽度的 4%
+  },
+  button: {
+    padding: small.md,                   // 使用预设值
   },
 });
 ```
 
 ### 5.3 布局原则
 
-1. **整体布局**：使用 flex 布局分配空间
-2. **选项区域**：`flex: 1` + `justifyContent: 'space-evenly'`
-3. **减少滚动**：大部分内容一屏显示
-4. **允许滚动**：仅在内容过长时允许滚动
+1. **无设计稿基准**：所有尺寸都是相对于当前屏幕的百分比
+2. **整体布局**：使用 flex 布局分配空间
+3. **选项区域**：`flex: 1` + `justifyContent: 'space-evenly'`
+4. **减少滚动**：大部分内容一屏显示
+5. **允许滚动**：仅在内容过长时允许滚动
+6. **预设值**：使用 `small.*`、`fontSmall.*`、`heightSmall.*` 快速设置常见尺寸
 
 ---
 

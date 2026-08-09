@@ -79,13 +79,23 @@
 
 **违规行为**：
 - 用户要求：使用相对长度单位（百分比、flex）
-- Agent 实现：使用 `responsiveWidth()` 函数，本质是基于设计稿像素计算
+- Agent 实现（第一版）：使用 `responsiveWidth()` 函数，本质是基于设计稿像素计算
 - 用户指出：这仍然是在用像素，不是真正的相对单位
 
 **正确应对方式**：
-- 真正的相对单位：`flex: 1`、`width: '50%'`、`justifyContent: 'space-between'`
-- 设计稿像素只能作为参考，不能作为实现基础
+- 真正的相对单位：`flex: 1`、`widthPercent(3)`、`fontSizePercent(4)`
+- 所有尺寸都是相对于当前屏幕的百分比，不依赖任何设计稿基准
 - 窗口大小变化时必须自动适配
+
+**最终解决方案**：
+```typescript
+// 宽度百分比
+export const widthPercent = (percent: number) => {
+  const { width } = Dimensions.get('window');
+  return (percent / 100) * width;
+};
+// 示例：widthPercent(3) = 屏幕宽度的 3%
+```
 
 ---
 
@@ -183,10 +193,11 @@
 ## 三、已完成的修改
 
 ### 布局优化
-- ✅ 创建响应式工具函数 `responsive.ts`
-- ✅ 所有组件使用响应式布局
-- ✅ 移除硬编码像素值
+- ✅ 创建纯百分比响应式函数 `responsive.ts`（无设计稿基准）
+- ✅ 所有组件使用新的百分比函数
+- ✅ 移除所有硬编码像素值
 - ✅ 使用 flex 布局分配空间
+- ✅ 移除 `responsiveWidth/Height/FontSize`，改用 `widthPercent/heightPercent/fontSizePercent`
 
 ### 功能实现
 - ✅ 三阶段答题流程（答题→反馈→解析）

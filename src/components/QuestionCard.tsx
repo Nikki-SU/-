@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
 import { useAppStore } from '../stores/useAppStore';
 import OptionButton from './OptionButton';
-import { getDisplayAnswer } from '../utils/shuffleUtils';
+import { getDisplayAnswerLabels } from '../utils/shuffleUtils';
 import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 import type { AnswerStatus } from '../types';
 
@@ -29,6 +29,7 @@ export default function QuestionCard() {
   const status = progress?.status || 'unanswered';
   const questionType = question.type === 'single' ? '单选题' : '多选题';
   const showExplanationBtn = isLocked && (status === 'wrong' || status === 'partial' || status === 'correct');
+  const selectedContents = progress?.selectedContents || [];
 
   const handleCardTap = () => {
     if (isLocked && phase !== 'feedback') {
@@ -74,9 +75,9 @@ export default function QuestionCard() {
               </View>
               <View style={styles.explanationSection}>
                 <Text style={styles.exLabel}>选项：</Text>
-                {(question.shuffledOptions || question.options).map((opt) => {
-                  const isSelected = progress?.selected.includes(opt.label);
-                  const displayAnswer = getDisplayAnswer(question);
+                {question.options.map((opt) => {
+                  const isSelected = selectedContents.includes(opt.text);
+                  const displayAnswer = getDisplayAnswerLabels(question);
                   const isCorrect = displayAnswer.includes(opt.label);
                   let color = '#666';
                   if (isSelected && isCorrect) color = '#4CAF50';
@@ -92,12 +93,19 @@ export default function QuestionCard() {
               <View style={styles.explanationSection}>
                 <Text style={styles.exLabel}>你的答案：</Text>
                 <Text style={[styles.exAnswer, { color: status === 'correct' ? '#4CAF50' : '#F44336' }]}>
-                  {progress?.selected.join(', ') || '未作答'}
+                  {selectedContents.length > 0 
+                    ? selectedContents.map(c => {
+                        const opt = question.options.find(o => o.text === c);
+                        return opt ? `${opt.label}. ${c}` : c;
+                      }).join(', ')
+                    : '未作答'}
                 </Text>
               </View>
               <View style={styles.explanationSection}>
                 <Text style={styles.exLabel}>正确答案：</Text>
-                <Text style={[styles.exAnswer, { color: '#4CAF50' }]}>{getDisplayAnswer(question)}</Text>
+                <Text style={[styles.exAnswer, { color: '#4CAF50' }]}>
+                  {getDisplayAnswerLabels(question)}
+                </Text>
               </View>
               <View style={styles.explanationSection}>
                 <Text style={styles.exLabel}>解析：</Text>
@@ -131,14 +139,16 @@ export default function QuestionCard() {
           </View>
           
           <View style={styles.optionsSection}>
-            {(question.shuffledOptions || question.options).map((opt) => (
+            {question.options.map((opt) => (
               <OptionButton
                 key={opt.label}
                 label={opt.label}
                 text={opt.text}
                 questionId={question.id}
                 correctAnswer={question.answer}
+                correctAnswerContent={question.answerContent}
                 selected={progress?.selected || []}
+                selectedContents={progress?.selectedContents || []}
                 status={status}
                 locked={isLocked}
                 question={question}

@@ -10,6 +10,15 @@ const STORAGE_KEY_PATH = 'quiz_app_storage_path';
 const STORAGE_KEY_INIT = 'quiz_app_initialized';
 const STORAGE_KEY_LS_PREFIX = 'quiz_app_file_';
 
+export const SUB_DIRS = {
+  QUESTIONS: 'questions',
+  FAVORITES: 'favorites',
+  WRONG: 'wrong',
+  META: 'meta',
+} as const;
+
+export type SubDirName = typeof SUB_DIRS[keyof typeof SUB_DIRS];
+
 function isWeb(): boolean {
   return typeof window !== 'undefined' && typeof document !== 'undefined';
 }
@@ -156,10 +165,10 @@ async function getDirHandle(): Promise<FileSystemDirectoryHandle | null> {
 
 export async function autoRestoreDirectory(): Promise<boolean> {
   if (!isWeb()) return false;
-  
+
   const path = getDataPath();
   if (!path) return false;
-  
+
   try {
     const handle = await loadDirHandleFromIDDB();
     if (handle) {
@@ -169,18 +178,35 @@ export async function autoRestoreDirectory(): Promise<boolean> {
   } catch (e) {
     console.warn('Failed to restore dir handle:', e);
   }
-  
+
   return false;
 }
 
-async function writeFileWeb(filename: string, content: string): Promise<void> {
-  if (!isWeb()) return;
-  
+async function ensureSubDirWeb(subDir: SubDirName): Promise<FileSystemDirectoryHandle | null> {
+  if (!isWeb()) return null;
   const handle = await getDirHandle();
-  if (!handle) {
-    throw new Error('NO_DIRECTORY');
+  if (!handle) return null;
+
+  try {
+    return await handle.getDirectoryHandle(subDir, { create: true });
+  } catch (e) {
+    console.warn(`Failed to ensure subdir ${subDir}:`, e);
+    return null;
   }
-  
+}
+
+async function writeFileWeb(filename: string, content: string, subDir?: SubDirName): Promise<void> {
+  if (!isWeb()) return;
+
+  let handle: FileSystemDirectoryHandle | null;
+  if (subDir) {
+    handle = await ensureSubDirWeb(subDir);
+    if (!handle) throw new Error('NO_DIRECTORY');
+  } else {
+    handle = await getDirHandle();
+    if (!handle) throw new Error('NO_DIRECTORY');
+  }
+
   try {
     const fileHandle = await handle.getFileHandle(filename, { create: true });
     const writable = await fileHandle.createWritable();
@@ -192,14 +218,18 @@ async function writeFileWeb(filename: string, content: string): Promise<void> {
   }
 }
 
-async function readFileWeb(filename: string): Promise<string | null> {
+async function readFileWeb(filename: string, subDir?: SubDirName): Promise<string | null> {
   if (!isWeb()) return null;
-  
-  const handle = await getDirHandle();
-  if (!handle) {
-    return null;
+
+  let handle: FileSystemDirectoryHandle | null;
+  if (subDir) {
+    handle = await ensureSubDirWeb(subDir);
+    if (!handle) return null;
+  } else {
+    handle = await getDirHandle();
+    if (!handle) return null;
   }
-  
+
   try {
     const fileHandle = await handle.getFileHandle(filename);
     const file = await fileHandle.getFile();
@@ -209,14 +239,18 @@ async function readFileWeb(filename: string): Promise<string | null> {
   }
 }
 
-async function removeFileWeb(filename: string): Promise<void> {
+async function removeFileWeb(filename: string, subDir?: SubDirName): Promise<void> {
   if (!isWeb()) return;
-  
-  const handle = await getDirHandle();
-  if (!handle) {
-    throw new Error('NO_DIRECTORY');
+
+  let handle: FileSystemDirectoryHandle | null;
+  if (subDir) {
+    handle = await ensureSubDirWeb(subDir);
+    if (!handle) return;
+  } else {
+    handle = await getDirHandle();
+    if (!handle) throw new Error('NO_DIRECTORY');
   }
-  
+
   try {
     await handle.removeEntry(filename);
   } catch {}
@@ -230,6 +264,11 @@ function getNativeDirPath(): string {
   const FileSystemAny = FileSystem as any;
   const base = FileSystemAny.documentDirectory || './';
   return base + DEFAULT_DIR_NAME + '/';
+}
+
+function getNativeSubDirPath(subDir?: SubDirName): string {
+  if (!subDir) return getNativeDirPath();
+  return getNativeDirPath() + subDir + '/';
 }
 
 async function ensureNativeDir(): Promise<void> {
@@ -246,26 +285,50 @@ async function ensureNativeDir(): Promise<void> {
   }
 }
 
+async function ensureNativeSubDir(subDir: SubDirName): Promise<void> {
+  if (isWeb()) return;
+  const dirPath = getNativeSubDirPath(subDir);
+  const FileSystemAny = FileSystem as any;
+  try {
+    const info = await FileSystemAny.getInfoAsync(dirPath);
+    if (!info.exists) {
+      await FileSystemAny.makeDirectoryAsync(dirPath, { intermediates: true });
+    }
+  } catch (e) {
+    console.warn(`ensureNativeSubDir ${subDir} failed:`, e);
+  }
+}
+
 export async function ensureDataDir(): Promise<void> {
   if (!isWeb()) {
     await ensureNativeDir();
   }
 }
 
-async function writeFileNative(filename: string, content: string): Promise<void> {
+async function writeFileNative(filename: string, content: string, subDir?: SubDirName): Promise<void> {
   if (isWeb()) return;
-  await ensureNativeDir();
-  const path = getNativeDirPath() + filename;
+  const dirPath = subDir ? getNativeSubDirPath(subDir) : getNativeDirPath();
+  if (subDir) {
+    await ensureNativeSubDir(subDir);
+  } else {
+    await ensureNativeDir();
+  }
+  const path = dirPath + filename;
   const FileSystemAny = FileSystem as any;
   await FileSystemAny.writeAsStringAsync(path, content, {
     encoding: FileSystemAny.EncodingType.UTF8,
   });
 }
 
-async function readFileNative(filename: string): Promise<string | null> {
+async function readFileNative(filename: string, subDir?: SubDirName): Promise<string | null> {
   if (isWeb()) return null;
-  await ensureNativeDir();
-  const path = getNativeDirPath() + filename;
+  const dirPath = subDir ? getNativeSubDirPath(subDir) : getNativeDirPath();
+  if (subDir) {
+    await ensureNativeSubDir(subDir);
+  } else {
+    await ensureNativeDir();
+  }
+  const path = dirPath + filename;
   const FileSystemAny = FileSystem as any;
   try {
     return await FileSystemAny.readAsStringAsync(path, {
@@ -276,9 +339,10 @@ async function readFileNative(filename: string): Promise<string | null> {
   }
 }
 
-async function removeFileNative(filename: string): Promise<void> {
+async function removeFileNative(filename: string, subDir?: SubDirName): Promise<void> {
   if (isWeb()) return;
-  const path = getNativeDirPath() + filename;
+  const dirPath = subDir ? getNativeSubDirPath(subDir) : getNativeDirPath();
+  const path = dirPath + filename;
   const FileSystemAny = FileSystem as any;
   try {
     const info = await FileSystemAny.getInfoAsync(path);
@@ -288,55 +352,40 @@ async function removeFileNative(filename: string): Promise<void> {
   } catch {}
 }
 
-export async function writeFile(filename: string, content: string): Promise<void> {
+export async function writeFile(filename: string, content: string, subDir?: SubDirName): Promise<void> {
   if (isWeb()) {
-    await writeFileWeb(filename, content);
+    await writeFileWeb(filename, content, subDir);
   } else {
-    await writeFileNative(filename, content);
+    await writeFileNative(filename, content, subDir);
   }
 }
 
-export async function readFile(filename: string): Promise<string | null> {
+export async function readFile(filename: string, subDir?: SubDirName): Promise<string | null> {
   if (isWeb()) {
-    return readFileWeb(filename);
+    return readFileWeb(filename, subDir);
   } else {
-    return readFileNative(filename);
+    return readFileNative(filename, subDir);
   }
 }
 
-export async function removeFile(filename: string): Promise<void> {
+export async function removeFile(filename: string, subDir?: SubDirName): Promise<void> {
   if (isWeb()) {
-    await removeFileWeb(filename);
+    await removeFileWeb(filename, subDir);
   } else {
-    await removeFileNative(filename);
+    await removeFileNative(filename, subDir);
   }
 }
 
-export async function writeJSON(filename: string, data: any): Promise<void> {
-  await writeFile(filename, JSON.stringify(data));
-}
-
-export async function readJSON<T>(filename: string): Promise<T | null> {
-  const content = await readFile(filename);
-  if (!content) return null;
-  try {
-    return JSON.parse(content) as T;
-  } catch {
-    return null;
-  }
-}
-
-export async function removeBankFiles(bankId: string): Promise<void> {
+export async function removeBankFiles(bankId: string, bankName: string): Promise<void> {
+  const baseName = bankName.replace(/[\\/:*?"<>|]/g, '_');
   const files = [
-    `bank_${bankId}_questions.json`,
-    `bank_${bankId}_questions.csv`,
-    `bank_${bankId}_progress.csv`,
-    `bank_${bankId}_wrong.csv`,
-    `bank_${bankId}_favorites.csv`,
-    `bank_${bankId}_completed.csv`,
+    { name: `${baseName}.csv`, subDir: SUB_DIRS.QUESTIONS },
+    { name: `${baseName}_收藏夹.csv`, subDir: SUB_DIRS.FAVORITES },
+    { name: `${baseName}_错题本.csv`, subDir: SUB_DIRS.WRONG },
+    { name: `${bankId}_index.csv`, subDir: SUB_DIRS.META },
   ];
   for (const f of files) {
-    await removeFile(f);
+    await removeFile(f.name, f.subDir);
   }
 }
 
@@ -381,14 +430,17 @@ export function clearDirHandle(): void {
   }
 }
 
-export async function listAllFiles(): Promise<string[]> {
+export async function listAllFiles(subDir?: SubDirName): Promise<string[]> {
   if (!isWeb()) return [];
-  
-  const handle = await getDirHandle();
-  if (!handle) {
-    return [];
+
+  let handle: FileSystemDirectoryHandle | null;
+  if (subDir) {
+    handle = await ensureSubDirWeb(subDir);
+  } else {
+    handle = await getDirHandle();
   }
-  
+  if (!handle) return [];
+
   try {
     const files: string[] = [];
     for await (const [name] of (handle as any).entries()) {

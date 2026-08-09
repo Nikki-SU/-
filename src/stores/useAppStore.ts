@@ -20,8 +20,8 @@ import {
   downloadFile,
   ensureDataDir,
   listAllFiles,
-  writeJSON,
-  readJSON,
+  SUB_DIRS,
+  type SubDirName,
 } from '../utils/fileStorage';
 import {
   createZipFromFiles,
@@ -29,7 +29,7 @@ import {
   extractZipFiles,
 } from '../utils/zipUtils';
 import { parseMarkdownWithValidation, parseMarkdownToQuestions, type ParseError } from '../utils/markdownParser';
-import { shuffleQuestionOptions, shuffleAllQuestions, shuffleArray, mapSelectionToOriginal, getDisplayAnswer } from '../utils/shuffleUtils';
+import { shuffleQuestionOptions, shuffleAllQuestions, shuffleArray, checkAnswerByContent, getDisplayAnswerLabels, getUserSelectedLabels } from '../utils/shuffleUtils';
 import { exportBothFiles } from '../utils/exportUtils';
 import type {
   Question,
@@ -43,6 +43,9 @@ import type {
   BankBranch,
   ExportOptions,
   MetadataCSVRow,
+  FavoriteCSVRow,
+  WrongCSVRow,
+  BankIndexRow,
 } from '../types';
 
 export interface ImportFileResult {
@@ -72,159 +75,154 @@ function generateId(): string {
   return 'bank_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
 }
 
-interface BankIndexRow {
-  id: string;
-  name: string;
-  created: string;
+function sanitizeFileName(name: string): string {
+  return name.replace(/[\\/:*?"<>|]/g, '_');
 }
 
-function parseOptionsFromString(optionsStr: string): { label: string; text: string; originalIndex: number }[] {
-  if (!optionsStr) return [];
-  
-  try {
-    const parsed = JSON.parse(optionsStr);
-    if (Array.isArray(parsed)) {
-      return parsed.map((opt: any, idx: number) => ({
-        label: opt.label || String.fromCharCode(65 + idx),
-        text: opt.text || '',
-        originalIndex: opt.originalIndex ?? idx
-      }));
-    }
-  } catch {
-    // JSON parse failed, try legacy format
-  }
-  
-  // Legacy format: A:text:index|B:text:index|...
-  return optionsStr.split('|').filter(s => s.trim()).map((opt, idx) => {
-    const parts = opt.split(':');
-    let label: string;
-    let text: string;
-    let originalIndex: number;
-    if (parts.length >= 3) {
-      label = parts[0];
-      originalIndex = parseInt(parts[parts.length - 1], 10);
-      text = parts.slice(1, -1).join(':');
-      if (isNaN(originalIndex)) {
-        text = parts.slice(1).join(':');
-        originalIndex = idx;
-      }
-    } else if (parts.length === 2) {
-      label = parts[0];
-      text = parts[1];
-      originalIndex = idx;
-    } else {
-      label = String.fromCharCode(65 + idx);
-      text = opt;
-      originalIndex = idx;
-    }
-    return { label: label.trim(), text: text.trim(), originalIndex };
-  });
+function questionToCSVRow(q: Question, progress?: Progress): QuestionCSVRow {
+  const opt = q.options;
+  const status = progress?.status || 'unanswered';
+  const answered = progress && progress.status !== 'unanswered' ? 'true' : 'false';
+  const round = progress?.round ?? 0;
+
+  return {
+    index: String(q.index),
+    题干: q.content,
+    选项A: opt[0]?.text || '',
+    选项B: opt[1]?.text || '',
+    选项C: opt[2]?.text || '',
+    选项D: opt[3]?.text || '',
+    选项E: opt[4]?.text || '',
+    选项F: opt[5]?.text || '',
+    正确答案内容: q.answerContent,
+    答案解析: q.explanation,
+    题型: q.type,
+    是否已答: answered,
+    答题状态: status,
+    轮次: String(round),
+  };
+}
+
+function csvRowToQuestion(row: QuestionCSVRow, id: string): Question {
+  const options = [row.选项A, row.选项B, row.选项C, row.选项D, row.选项E, row.选项F]
+    .filter(o => o && o.trim())
+    .map((text, idx) => ({
+      label: String.fromCharCode(65 + idx),
+      text: text.trim(),
+    }));
+
+  const answerContent = row.正确答案内容 || '';
+  const answerLabels = answerContent
+    .split('|||')
+    .filter(Boolean)
+    .map((content) => {
+      const opt = options.find(o => o.text === content.trim());
+      return opt ? opt.label : '';
+    })
+    .filter(Boolean)
+    .join('');
+
+  return {
+    id,
+    index: parseInt(row.index) || 0,
+    title: '',
+    content: row.题干,
+    options,
+    answer: answerLabels,
+    answerContent,
+    explanation: row.答案解析 || '暂无解析',
+    type: (row.题型 as 'single' | 'multi') || 'single',
+  };
 }
 
 function initQuestionWithShuffled(q: Question): Question {
-  const indexed = q.options.map((opt, idx) => ({
-    ...opt,
-    originalIndex: opt.originalIndex ?? idx,
-  }));
-  const shuffled = shuffleArray(indexed);
+  const shuffled = shuffleArray(q.options);
   const relabeled = shuffled.map((opt, newIdx) => ({
     ...opt,
     label: String.fromCharCode(65 + newIdx),
   }));
+  
+  const answerContent = q.answerContent || '';
+  const newAnswerContent = answerContent
+    .split('|||')
+    .filter(Boolean)
+    .map((content) => {
+      const opt = relabeled.find(o => o.text === content.trim());
+      return opt ? opt.text : content.trim();
+    })
+    .join('|||');
+
   return {
     ...q,
     options: relabeled,
-    shuffledOptions: relabeled,
+    answerContent: newAnswerContent,
   };
 }
 
 async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: string | null }> {
   try {
-    const indexRows = await readCSV<BankIndexRow>('banks_index.csv');
+    const indexRows = await readCSV<BankIndexRow>('banks_index.csv', SUB_DIRS.META);
     if (indexRows.length === 0) {
       return { banks: [], currentBankId: null };
     }
 
     const banks: Bank[] = [];
     for (const row of indexRows) {
-      let questions: Question[] = [];
+      const safeName = sanitizeFileName(row.name);
       
-      // 优先从 JSON 文件读取题目
-      const jsonQuestions = await readJSON<Question[]>(`bank_${row.id}_questions.json`);
-      if (jsonQuestions && Array.isArray(jsonQuestions) && jsonQuestions.length > 0) {
-        questions = jsonQuestions.map(q => initQuestionWithShuffled(q));
-      } else {
-        // 兼容旧 CSV 格式并自动迁移
-        try {
-          const csvQuestions = await readCSV<QuestionCSVRow>(`bank_${row.id}_questions.csv`);
-          if (csvQuestions.length > 0) {
-            questions = csvQuestions.map((q) => {
-              const options = parseOptionsFromString(q.options);
-              const question: Question = {
-                id: q.id,
-                index: parseInt(q.index) || 0,
-                title: q.title,
-                content: q.content,
-                options,
-                answer: q.answer,
-                explanation: q.explanation,
-                type: q.type as 'single' | 'multi',
-              };
-              return initQuestionWithShuffled(question);
-            });
-            // 迁移到 JSON
-            await writeJSON(`bank_${row.id}_questions.json`, questions.map(q => ({
-              ...q,
-              options: q.shuffledOptions || q.options
-            })));
-            // 删除旧 CSV
-            await removeFile(`bank_${row.id}_questions.csv`);
-          }
-        } catch (e) {
-          console.warn(`Failed to load CSV questions for bank ${row.id}:`, e);
-        }
+      let questions: Question[] = [];
+      const csvQuestions = await readCSV<QuestionCSVRow>(`${safeName}.csv`, SUB_DIRS.QUESTIONS);
+      if (csvQuestions.length > 0) {
+        questions = csvQuestions.map((q, idx) => {
+          const question = csvRowToQuestion(q, `q_${row.id}_${idx}`);
+          return initQuestionWithShuffled(question);
+        });
       }
 
-      const progressRows = await readCSV<ProgressCSVRow>(`bank_${row.id}_progress.csv`);
-      const wrongRows = await readCSV<{ questionId: string }>(`bank_${row.id}_wrong.csv`);
-      const favRows = await readCSV<{ questionId: string }>(`bank_${row.id}_favorites.csv`);
-
       const progressMap: Record<string, Progress> = {};
-      let maxRound = 0;
-      progressRows.forEach((p) => {
-        const roundVal = p.round ? parseInt(p.round) : undefined;
-        if (roundVal !== undefined && roundVal > maxRound) {
-          maxRound = roundVal;
-        }
-        progressMap[p.questionId] = {
-          questionId: p.questionId,
-          selected: p.selected ? p.selected.split('|') : [],
-          selectedOriginalIndexes: p.selectedOriginalIndexes ? p.selectedOriginalIndexes.split('|').map(Number) : [],
-          status: p.status as AnswerStatus,
-          locked: p.locked === 'true',
-          answeredAt: p.answeredAt ? parseInt(p.answeredAt) : undefined,
-          round: roundVal,
+      questions.forEach((q) => {
+        const csvRow = csvQuestions.find(r => String(r.index) === String(q.index));
+        const status = csvRow?.答题状态 as AnswerStatus || 'unanswered';
+        const round = csvRow?.轮次 ? parseInt(csvRow.轮次) : 0;
+        
+        progressMap[q.id] = {
+          questionId: q.id,
+          selected: [],
+          selectedContents: [],
+          status,
+          locked: status !== 'unanswered',
+          round,
         };
       });
 
-      const completedRows = await readCSV<{ questionId: string }>(`bank_${row.id}_completed.csv`);
-      
+      const favRows = await readCSV<FavoriteCSVRow>(`${safeName}_收藏夹.csv`, SUB_DIRS.FAVORITES);
+      const favoritesIds = favRows.map(r => {
+        const q = questions.find(q => String(q.index) === r.index);
+        return q ? q.id : '';
+      }).filter(Boolean);
+
+      const wrongRows = await readCSV<WrongCSVRow>(`${safeName}_错题本.csv`, SUB_DIRS.WRONG);
+      const wrongBankIds = wrongRows.map(r => {
+        const q = questions.find(q => String(q.index) === r.index);
+        return q ? q.id : '';
+      }).filter(Boolean);
+
       const bank: Bank = {
         id: row.id,
         name: row.name,
         questions,
         progressMap,
-        wrongBankIds: wrongRows.map((r) => r.questionId),
-        favoritesIds: favRows.map((r) => r.questionId),
-        wrongBankRound: maxRound,
-        wrongBankCompletedIds: completedRows.map((r) => r.questionId),
+        wrongBankIds,
+        favoritesIds,
+        wrongBankRound: Math.max(0, ...wrongRows.map(r => parseInt(r.轮次) || 0)),
+        wrongBankCompletedIds: [],
         shuffledVersion: 0,
         created: parseInt(row.created) || Date.now(),
       };
       banks.push(bank);
     }
 
-    const metaContent = await readFile('app_meta.csv');
+    const metaContent = await readFile('app_meta.csv', SUB_DIRS.META);
     let currentBankId: string | null = null;
     if (metaContent) {
       const meta = parseCSVUtil<{ key: string; value: string }>(metaContent);
@@ -245,30 +243,6 @@ async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: str
   }
 }
 
-function parseCSV<T>(csvString: string): T[] {
-  const lines = csvString.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim());
-  return lines.slice(1).map((line) => {
-    const values: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (const char of line) {
-      if (char === '"') inQuotes = !inQuotes;
-      else if (char === ',' && !inQuotes) { values.push(current); current = ''; }
-      else current += char;
-    }
-    values.push(current);
-    const obj: any = {};
-    headers.forEach((h, i) => {
-      let val = values[i] || '';
-      if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1).replace(/""/g, '"');
-      obj[h] = val;
-    });
-    return obj as T;
-  });
-}
-
 async function persistBanksToFiles(banks: Bank[], currentBankId: string | null) {
   try {
     const indexRows: BankIndexRow[] = banks.map((b) => ({
@@ -276,12 +250,12 @@ async function persistBanksToFiles(banks: Bank[], currentBankId: string | null) 
       name: b.name,
       created: String(b.created),
     }));
-    await writeCSV('banks_index.csv', indexRows);
+    await writeCSV('banks_index.csv', indexRows, SUB_DIRS.META);
 
     if (currentBankId) {
-      await writeCSV('app_meta.csv', [{ key: 'currentBankId', value: currentBankId }]);
+      await writeCSV('app_meta.csv', [{ key: 'currentBankId', value: currentBankId }], SUB_DIRS.META);
     } else {
-      await writeCSV('app_meta.csv', [{ key: 'currentBankId', value: '' }]);
+      await writeCSV('app_meta.csv', [{ key: 'currentBankId', value: '' }], SUB_DIRS.META);
     }
   } catch (e) {
     console.warn('Failed to persist banks index:', e);
@@ -315,28 +289,38 @@ async function fileSyncSaveAll(state: ReturnType<typeof useAppStore.getState>) {
     useAppStore.setState({ banks: updatedBanks });
 
     if (currentBankId) {
-      // 题目数据改用 JSON 存储，彻底避免 CSV 解析问题
-      await writeJSON(`bank_${currentBankId}_questions.json`, questions.map(q => ({
-        ...q,
-        options: q.shuffledOptions || q.options
-      })));
-      // 删除旧 CSV 文件（如果存在）
-      await removeFile(`bank_${currentBankId}_questions.csv`);
+      const currentBank = updatedBanks.find(b => b.id === currentBankId);
+      if (!currentBank) return;
 
-      const progressRows: ProgressCSVRow[] = Object.values(progressMap).map((p) => ({
-        questionId: p.questionId,
-        selected: p.selected.join('|'),
-        selectedOriginalIndexes: p.selectedOriginalIndexes ? p.selectedOriginalIndexes.join('|') : '',
-        status: p.status,
-        answeredAt: p.answeredAt ? String(p.answeredAt) : '',
-        locked: String(p.locked),
-        round: p.round ? String(p.round) : '',
-      }));
-      await writeCSV(`bank_${currentBankId}_progress.csv`, progressRows);
+      const safeName = sanitizeFileName(currentBank.name);
 
-      await writeCSV(`bank_${currentBankId}_wrong.csv`, wrongBankIds.map((id) => ({ questionId: id })));
-      await writeCSV(`bank_${currentBankId}_favorites.csv`, favoritesIds.map((id) => ({ questionId: id })));
-      await writeCSV(`bank_${currentBankId}_completed.csv`, wrongBankCompletedIds.map((id) => ({ questionId: id })));
+      const questionRows: QuestionCSVRow[] = questions.map(q => 
+        questionToCSVRow(q, progressMap[q.id])
+      );
+      await writeCSV(`${safeName}.csv`, questionRows, SUB_DIRS.QUESTIONS);
+
+      const favRows: FavoriteCSVRow[] = favoritesIds.map(id => {
+        const q = questions.find(q => q.id === id);
+        return {
+          index: String(q?.index || ''),
+          收藏时间: new Date().toISOString(),
+        };
+      }).filter(r => r.index);
+      await writeCSV(`${safeName}_收藏夹.csv`, favRows, SUB_DIRS.FAVORITES);
+
+      const wrongRows: WrongCSVRow[] = wrongBankIds.map(id => {
+        const q = questions.find(q => q.id === id);
+        if (!q) return null;
+        const progress = progressMap[id];
+        const selectedContents = progress?.selectedContents || [];
+        return {
+          index: String(q.index),
+          用户选择内容: selectedContents.join('|||'),
+          错误时间: new Date().toISOString(),
+          轮次: String(progress?.round || 0),
+        };
+      }).filter(Boolean) as WrongCSVRow[];
+      await writeCSV(`${safeName}_错题本.csv`, wrongRows, SUB_DIRS.WRONG);
     }
   } catch (e) {
     if (e instanceof Error && e.message === 'NO_DIRECTORY') {
@@ -433,19 +417,36 @@ async function performSave(state: ReturnType<typeof useAppStore.getState>) {
 
   const { questions, progressMap, wrongBankIds, favoritesIds, wrongBankCompletedIds } = state;
 
-  // 题目数据改用 JSON 存储
-  await writeJSON('questions.json', questions.map(q => ({
-    ...q,
-    options: q.shuffledOptions || q.options
-  })));
-  // 删除旧 CSV
-  await removeFile('questions.csv');
+  const questionRows: QuestionCSVRow[] = questions.map(q => {
+    const opt = q.options;
+    const progress = progressMap[q.id];
+    const status = progress?.status || 'unanswered';
+    const answered = progress && progress.status !== 'unanswered' ? 'true' : 'false';
+    const round = progress?.round ?? 0;
+    return {
+      index: String(q.index),
+      题干: q.content,
+      选项A: opt[0]?.text || '',
+      选项B: opt[1]?.text || '',
+      选项C: opt[2]?.text || '',
+      选项D: opt[3]?.text || '',
+      选项E: opt[4]?.text || '',
+      选项F: opt[5]?.text || '',
+      正确答案内容: q.answerContent,
+      答案解析: q.explanation,
+      题型: q.type,
+      是否已答: answered,
+      答题状态: status,
+      轮次: String(round),
+    };
+  });
+  await writeCSV('questions.csv', questionRows);
 
   const progressRows: ProgressCSVRow[] = Object.values(progressMap).map(
     (p) => ({
       questionId: p.questionId,
       selected: p.selected.join('|'),
-      selectedOriginalIndexes: p.selectedOriginalIndexes ? p.selectedOriginalIndexes.join('|') : '',
+      selectedContents: p.selectedContents ? p.selectedContents.join('|') : '',
       status: p.status,
       answeredAt: p.answeredAt ? String(p.answeredAt) : '',
       locked: String(p.locked),
@@ -576,7 +577,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       progressMap[q.id] = {
         questionId: q.id,
         selected: [],
-        selectedOriginalIndexes: [],
+        selectedContents: [],
         status: 'unanswered',
         locked: false,
       };
@@ -647,7 +648,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         progressMap[q.id] = {
           questionId: q.id,
           selected: [],
-          selectedOriginalIndexes: [],
+          selectedContents: [],
           status: 'unanswered',
           locked: false,
         };
@@ -767,7 +768,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     if (bankToDelete) {
-      await removeBankFiles(bankToDelete.id);
+      await removeBankFiles(bankToDelete.id, bankToDelete.name);
     }
     await persistBanksToFiles(newBanks, wasCurrent ? null : currentBankId);
     get().showToast('已删除题库');
@@ -826,40 +827,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     await ensureDataDir();
-    // 优先从 JSON 读取题目
     let questions: Question[] = [];
-    const jsonQuestions = await readJSON<Question[]>('questions.json');
-    if (jsonQuestions && Array.isArray(jsonQuestions) && jsonQuestions.length > 0) {
-      questions = jsonQuestions.map(q => initQuestionWithShuffled(q));
-    } else {
-      // 兼容旧 CSV 格式
-      try {
-        const questionRows = await readCSV<QuestionCSVRow>('questions.csv');
-        if (questionRows.length > 0) {
-          questions = questionRows.map((row) => {
-            const options = parseOptionsFromString(row.options);
-            const question: Question = {
-              id: row.id,
-              index: parseInt(row.index),
-              title: row.title,
-              content: row.content,
-              options,
-              answer: row.answer,
-              explanation: row.explanation,
-              type: row.type as 'single' | 'multi',
-            };
-            return initQuestionWithShuffled(question);
-          });
-          // 迁移到 JSON
-          await writeJSON('questions.json', questions.map(q => ({
-            ...q,
-            options: q.shuffledOptions || q.options
-          })));
-          await removeFile('questions.csv');
-        }
-      } catch (e) {
-        console.warn('Failed to load CSV questions:', e);
+    try {
+      const questionRows = await readCSV<QuestionCSVRow>('questions.csv');
+      if (questionRows.length > 0) {
+        questions = questionRows.map((row, idx) => {
+          const question = csvRowToQuestion(row, `q_loaded_${idx}`);
+          return initQuestionWithShuffled(question);
+        });
       }
+    } catch (e) {
+      console.warn('Failed to load CSV questions:', e);
     }
 
     const progressRows = await readCSV<ProgressCSVRow>('progress.csv');
@@ -868,7 +846,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       progressMap[row.questionId] = {
         questionId: row.questionId,
         selected: row.selected ? row.selected.split('|') : [],
-        selectedOriginalIndexes: row.selectedOriginalIndexes ? row.selectedOriginalIndexes.split('|').map(Number) : [],
+        selectedContents: row.selectedContents ? row.selectedContents.split('|') : [],
         status: row.status as AnswerStatus,
         locked: row.locked === 'true',
         answeredAt: row.answeredAt ? parseInt(row.answeredAt) : undefined,
@@ -944,32 +922,35 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
-    let newSelected: string[];
-    let newSelectedOriginalIndexes: number[];
+    const clickedOption = question.options.find((o) => o.label === label);
+    if (!clickedOption) return;
 
-    const displayOptions = question.shuffledOptions || question.options;
-    const clickedOption = displayOptions.find((o) => o.label === label);
-    const originalIndex = clickedOption ? clickedOption.originalIndex : -1;
+    let newSelected: string[] = progress.selected || [];
+    let newSelectedContents: string[] = progress.selectedContents || [];
 
     if (question.type === 'single') {
-      if (progress.selected.includes(label)) {
+      if (newSelected.includes(label)) {
         newSelected = [];
-        newSelectedOriginalIndexes = [];
+        newSelectedContents = [];
       } else {
         newSelected = [label];
-        newSelectedOriginalIndexes = originalIndex >= 0 ? [originalIndex] : [];
+        newSelectedContents = [clickedOption.text];
       }
     } else {
-      if (progress.selected.includes(label)) {
-        newSelected = progress.selected.filter((s) => s !== label);
-        newSelectedOriginalIndexes = progress.selectedOriginalIndexes.filter((idx) => idx !== originalIndex);
+      if (newSelected.includes(label)) {
+        newSelected = newSelected.filter((s) => s !== label);
+        newSelectedContents = newSelectedContents.filter((c) => c !== clickedOption.text);
       } else {
-        newSelected = [...progress.selected, label].sort();
-        newSelectedOriginalIndexes = [...progress.selectedOriginalIndexes, originalIndex].filter((idx) => idx >= 0).sort((a, b) => a - b);
+        newSelected = [...newSelected, label].sort();
+        newSelectedContents = [...newSelectedContents, clickedOption.text];
       }
     }
 
-    const newProgress = { ...progress, selected: newSelected, selectedOriginalIndexes: newSelectedOriginalIndexes };
+    const newProgress = { 
+      ...progress, 
+      selected: newSelected, 
+      selectedContents: newSelectedContents 
+    };
     set({
       progressMap: {
         ...progressMap,
@@ -1001,7 +982,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       ...progress,
       status: 'wrong' as AnswerStatus,
       locked: true,
-      selectedOriginalIndexes: [],
+      selected: [],
+      selectedContents: [],
       answeredAt: Date.now(),
       round: isInWrongBank ? wrongBankRound : undefined,
     };
@@ -1036,7 +1018,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!question || !progress) return;
     
     if (progress.locked) return;
-    if (progress.selected.length === 0) {
+    if (progress.selectedContents.length === 0) {
       get().showToast('请选择一个选项');
       return;
     }
@@ -1049,30 +1031,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (progress.status === 'locked') return;
     }
 
-    const correctIndexes = question.answer.split('').map((c) => c.charCodeAt(0) - 65);
-    const selectedIndexes = progress.selectedOriginalIndexes.length > 0
-      ? progress.selectedOriginalIndexes
-      : mapSelectionToOriginal(progress.selected, question);
+    const userSelectedContents = progress.selectedContents;
+    const correctAnswerContent = question.answerContent;
+    const type = question.type;
 
-    const displayAnswer = getDisplayAnswer(question);
-    const correctLabels = displayAnswer.split('');
-    const selectedLabels = progress.selected;
-
-    let status: AnswerStatus;
-    if (selectedLabels.length === 0) {
-      status = 'unanswered';
-    } else if (question.type === 'single') {
-      status = selectedLabels[0] === correctLabels[0] ? 'correct' : 'wrong';
-    } else {
-      const correctSet = new Set(correctLabels);
-      const hasWrong = selectedLabels.some((s) => !correctSet.has(s));
-      const isSubset = selectedLabels.every((s) => correctSet.has(s));
-      const isEqual = selectedLabels.length === correctLabels.length && isSubset;
-      if (isEqual) status = 'correct';
-      else if (hasWrong) status = 'wrong';
-      else if (isSubset && selectedLabels.length < correctLabels.length) status = 'partial';
-      else status = 'wrong';
-    }
+    let status: AnswerStatus = checkAnswerByContent(userSelectedContents, correctAnswerContent, type);
 
     const newProgress: Progress = {
       ...progress,
@@ -1184,7 +1147,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           status: 'unanswered',
           locked: false,
           selected: [],
-          selectedOriginalIndexes: [],
+          selectedContents: [],
           round: nextRound,
         };
       }
@@ -1265,7 +1228,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         status: 'unanswered',
         locked: false,
         selected: [],
-        selectedOriginalIndexes: [],
+        selectedContents: [],
         round: nextRound,
       };
     });
@@ -1319,7 +1282,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         status: 'unanswered',
         locked: false,
         selected: [],
-        selectedOriginalIndexes: [],
+        selectedContents: [],
       };
     });
 
@@ -1371,7 +1334,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         status: 'unanswered',
         locked: false,
         selected: [],
-        selectedOriginalIndexes: [],
+        selectedContents: [],
         round: undefined,
       };
     });
@@ -1405,7 +1368,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         status: 'unanswered',
         locked: false,
         selected: [],
-        selectedOriginalIndexes: [],
+        selectedContents: [],
       };
     });
 
@@ -1580,7 +1543,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           status: 'unanswered',
           locked: false,
           selected: [],
-          selectedOriginalIndexes: [],
+          selectedContents: [],
           round: roundToUse,
         };
       }
@@ -1636,7 +1599,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           status: 'unanswered',
           locked: false,
           selected: [],
-          selectedOriginalIndexes: [],
+          selectedContents: [],
         };
       }
     });
@@ -1691,7 +1654,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       progressMap[q.id] = {
         questionId: q.id,
         selected: [],
-        selectedOriginalIndexes: [],
+        selectedContents: [],
         status: 'unanswered',
         locked: false,
       };
@@ -1758,20 +1721,36 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
 
-    // 先保存所有数据到文件系统
     for (const bank of banks) {
-      // 题目数据改用 JSON 存储
-      await writeJSON(`bank_${bank.id}_questions.json`, bank.questions.map(q => ({
-        ...q,
-        options: q.shuffledOptions || q.options
-      })));
-      // 删除旧 CSV
-      await removeFile(`bank_${bank.id}_questions.csv`);
+      const questionRows: QuestionCSVRow[] = bank.questions.map(q => {
+        const opt = q.options;
+        const progress = bank.progressMap[q.id];
+        const status = progress?.status || 'unanswered';
+        const answered = progress && progress.status !== 'unanswered' ? 'true' : 'false';
+        const round = progress?.round ?? 0;
+        return {
+          index: String(q.index),
+          题干: q.content,
+          选项A: opt[0]?.text || '',
+          选项B: opt[1]?.text || '',
+          选项C: opt[2]?.text || '',
+          选项D: opt[3]?.text || '',
+          选项E: opt[4]?.text || '',
+          选项F: opt[5]?.text || '',
+          正确答案内容: q.answerContent,
+          答案解析: q.explanation,
+          题型: q.type,
+          是否已答: answered,
+          答题状态: status,
+          轮次: String(round),
+        };
+      });
+      await writeCSV(`bank_${bank.id}_questions.csv`, questionRows);
 
       const progressRows: ProgressCSVRow[] = Object.values(bank.progressMap).map((p) => ({
         questionId: p.questionId,
         selected: p.selected.join('|'),
-        selectedOriginalIndexes: p.selectedOriginalIndexes ? p.selectedOriginalIndexes.join('|') : '',
+        selectedContents: p.selectedContents ? p.selectedContents.join('|') : '',
         status: p.status,
         answeredAt: p.answeredAt ? String(p.answeredAt) : '',
         locked: String(p.locked),
@@ -1804,14 +1783,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
       
-      // 添加一个说明文件
       const readmeContent = `题库刷题软件 - 数据备份
 导出时间: ${new Date().toLocaleString()}
 包含题库: ${banks.length} 个
 
 文件说明:
 - banks_index.csv: 题库索引
-- bank_*_questions.json: 题目数据 (JSON格式)
+- bank_*_questions.csv: 题目数据
 - bank_*_progress.csv: 答题进度
 - bank_*_wrong.csv: 错题本
 - bank_*_favorites.csv: 收藏
@@ -1916,36 +1894,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
         const banks: Bank[] = [];
         for (const row of rows) {
-          // 优先从 JSON 读取题目
           let questionList: Question[] = [];
-          const jsonData = await readJSON<Question[]>(`bank_${row.id}_questions.json`);
-          if (jsonData && Array.isArray(jsonData) && jsonData.length > 0) {
-            questionList = jsonData.map(q => initQuestionWithShuffled(q));
-          } else {
-            // 兼容旧 CSV
-            const csvQuestions = await readCSV<QuestionCSVRow>(`bank_${row.id}_questions.csv`);
-            questionList = csvQuestions.map((q) => {
-              const options = parseOptionsFromString(q.options);
-              const question: Question = {
-                id: q.id,
-                index: parseInt(q.index) || 0,
-                title: q.title,
-                content: q.content,
-                options,
-                answer: q.answer,
-                explanation: q.explanation,
-                type: q.type as 'single' | 'multi',
-              };
+          const csvQuestions = await readCSV<QuestionCSVRow>(`bank_${row.id}_questions.csv`);
+          if (csvQuestions.length > 0) {
+            questionList = csvQuestions.map((q, idx) => {
+              const question = csvRowToQuestion(q, `q_${row.id}_${idx}`);
               return initQuestionWithShuffled(question);
             });
-            // 迁移到 JSON
-            if (questionList.length > 0) {
-              await writeJSON(`bank_${row.id}_questions.json`, questionList.map(q => ({
-                ...q,
-                options: q.shuffledOptions || q.options
-              })));
-              await removeFile(`bank_${row.id}_questions.csv`);
-            }
           }
 
           const progressRows = await readCSV<ProgressCSVRow>(`bank_${row.id}_progress.csv`);
@@ -1958,7 +1913,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             progressMap[p.questionId] = {
               questionId: p.questionId,
               selected: p.selected ? p.selected.split('|') : [],
-              selectedOriginalIndexes: p.selectedOriginalIndexes ? p.selectedOriginalIndexes.split('|').map(Number) : [],
+              selectedContents: p.selectedContents ? p.selectedContents.split('|') : [],
               status: p.status as AnswerStatus,
               locked: p.locked === 'true',
               answeredAt: p.answeredAt ? parseInt(p.answeredAt) : undefined,
@@ -2022,7 +1977,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           progressMap[q.id] = {
             questionId: q.id,
             selected: [],
-            selectedOriginalIndexes: [],
+            selectedContents: [],
             status: 'unanswered',
             locked: false,
           };

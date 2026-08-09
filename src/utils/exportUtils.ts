@@ -1,5 +1,5 @@
 import type { Question } from '../types';
-import { getDisplayAnswer } from './shuffleUtils';
+import { getDisplayAnswerLabels } from './shuffleUtils';
 
 export function generateQuestionsMarkdown(questions: Question[]): string {
   const lines: string[] = [];
@@ -22,10 +22,9 @@ export function generatePracticeMarkdown(questions: Question[]): string {
   const lines: string[] = [];
 
   questions.forEach((q, index) => {
-    const displayOptions = q.shuffledOptions || q.options;
     lines.push(`${index + 1}. ${q.content}`);
 
-    displayOptions.forEach((opt) => {
+    q.options.forEach((opt) => {
       lines.push(`   ${opt.label}. ${opt.text}`);
     });
 
@@ -39,14 +38,13 @@ export function generateAnswerMarkdown(questions: Question[]): string {
   const lines: string[] = [];
 
   questions.forEach((q, index) => {
-    const displayOptions = q.shuffledOptions || q.options;
     lines.push(`${index + 1}. ${q.content}`);
 
-    displayOptions.forEach((opt) => {
+    q.options.forEach((opt) => {
       lines.push(`   ${opt.label}. ${opt.text}`);
     });
 
-    lines.push(`   答案：${getDisplayAnswer(q)}`);
+    lines.push(`   答案：${getDisplayAnswerLabels(q)}`);
     if (q.explanation) {
       lines.push(`   解析：${q.explanation}`);
     }

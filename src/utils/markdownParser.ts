@@ -367,6 +367,11 @@ export function parseMarkdownWithValidation(markdown: string): ParseResult {
     const explanation = extractExplanation(lines);
     const type = answer.length === 1 ? 'single' : 'multi';
 
+    const answerContent = answer.split('').map((label) => {
+      const opt = options.find(o => o.label === label);
+      return opt ? opt.text : '';
+    }).filter(Boolean).join('|||');
+
     validBlocks++;
     questions.push({
       id: `q${questions.length + 1}`,
@@ -375,6 +380,7 @@ export function parseMarkdownWithValidation(markdown: string): ParseResult {
       content: content || '（无题干）',
       options,
       answer,
+      answerContent,
       explanation,
       type,
     });

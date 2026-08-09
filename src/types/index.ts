@@ -1,7 +1,7 @@
 export interface Option {
   label: string;
   text: string;
-  originalIndex: number;
+  originalIndex?: number;
 }
 
 export interface Question {
@@ -11,9 +11,9 @@ export interface Question {
   content: string;
   options: Option[];
   answer: string;
+  answerContent: string;
   explanation: string;
   type: 'single' | 'multi';
-  shuffledOptions?: Option[];
 }
 
 export type AnswerStatus = 'correct' | 'wrong' | 'partial' | 'unanswered' | 'locked';
@@ -21,7 +21,7 @@ export type AnswerStatus = 'correct' | 'wrong' | 'partial' | 'unanswered' | 'loc
 export interface Progress {
   questionId: string;
   selected: string[];
-  selectedOriginalIndexes: number[];
+  selectedContents: string[];
   status: AnswerStatus;
   locked: boolean;
   answeredAt?: number;
@@ -42,32 +42,48 @@ export interface Bank {
 }
 
 export interface QuestionCSVRow {
-  id: string;
   index: string;
-  title: string;
-  content: string;
-  options: string;
-  answer: string;
-  explanation: string;
-  type: string;
+  题干: string;
+  选项A: string;
+  选项B: string;
+  选项C: string;
+  选项D: string;
+  选项E: string;
+  选项F: string;
+  正确答案内容: string;
+  答案解析: string;
+  题型: string;
+  是否已答: string;
+  答题状态: string;
+  轮次: string;
 }
 
 export interface ProgressCSVRow {
   questionId: string;
   selected: string;
-  selectedOriginalIndexes: string;
+  selectedContents: string;
   status: string;
   answeredAt: string;
   locked: string;
   round: string;
 }
 
-export interface WrongBankCSVRow {
-  questionId: string;
+export interface FavoriteCSVRow {
+  index: string;
+  收藏时间: string;
 }
 
-export interface FavoritesCSVRow {
-  questionId: string;
+export interface WrongCSVRow {
+  index: string;
+  用户选择内容: string;
+  错误时间: string;
+  轮次: string;
+}
+
+export interface BankIndexRow {
+  id: string;
+  name: string;
+  created: string;
 }
 
 export interface MetadataCSVRow {

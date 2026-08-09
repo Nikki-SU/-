@@ -1,17 +1,17 @@
-import { writeFile, readFile, downloadFile } from './fileStorage';
+import { writeFile, readFile, downloadFile, type SubDirName } from './fileStorage';
 
 export function parseCSV<T>(csvString: string): T[] {
   if (!csvString || !csvString.trim()) return [];
-  
+
   const records: string[][] = [];
   let currentRecord: string[] = [];
   let currentField = '';
   let inQuotes = false;
   let i = 0;
-  
+
   while (i < csvString.length) {
     const char = csvString[i];
-    
+
     if (inQuotes) {
       if (char === '"') {
         if (i + 1 < csvString.length && csvString[i + 1] === '"') {
@@ -57,14 +57,14 @@ export function parseCSV<T>(csvString: string): T[] {
       }
     }
   }
-  
+
   if (currentField.length > 0 || currentRecord.length > 0) {
     currentRecord.push(currentField);
     records.push(currentRecord);
   }
-  
+
   if (records.length === 0) return [];
-  
+
   const headers = records[0];
   return records.slice(1).filter(r => r.length > 0 || r.join('').trim()).map((values) => {
     const obj: any = {};
@@ -78,30 +78,30 @@ export function parseCSV<T>(csvString: string): T[] {
 export function stringifyCSV<T extends Record<string, any>>(data: T[]): string {
   if (data.length === 0) return '';
   const headers = Object.keys(data[0]);
-  
+
   const escapeField = (val: string): string => {
     if (val.includes(',') || val.includes('"') || val.includes('\n') || val.includes('\r')) {
       return `"${val.replace(/"/g, '""')}"`;
     }
     return val;
   };
-  
+
   const rows = data.map((obj) =>
     headers
       .map((h) => escapeField(String(obj[h] ?? '')))
       .join(',')
   );
-  
+
   return [headers.join(','), ...rows].join('\n');
 }
 
-export async function writeCSV(filename: string, data: any[]): Promise<void> {
+export async function writeCSV(filename: string, data: any[], subDir?: SubDirName): Promise<void> {
   const content = stringifyCSV(data);
-  await writeFile(filename, content);
+  await writeFile(filename, content, subDir);
 }
 
-export async function readCSV<T>(filename: string): Promise<T[]> {
-  const content = await readFile(filename);
+export async function readCSV<T>(filename: string, subDir?: SubDirName): Promise<T[]> {
+  const content = await readFile(filename, subDir);
   if (!content) return [];
   return parseCSV<T>(content);
 }
@@ -113,4 +113,32 @@ export async function exportCSV(filename: string, data: any[]): Promise<void> {
 
 export async function exportMarkdown(filename: string, content: string): Promise<void> {
   await downloadFile(filename, content, 'text/markdown');
+}
+
+export async function writeJSON<T>(filename: string, data: T, subDir?: SubDirName): Promise<void> {
+  const content = JSON.stringify(data, null, 2);
+  await writeFile(filename, content, subDir);
+}
+
+export async function readJSON<T>(filename: string, subDir?: SubDirName): Promise<T | null> {
+  const content = await readFile(filename, subDir);
+  if (!content) return null;
+  try {
+    return JSON.parse(content) as T;
+  } catch {
+    return null;
+  }
+}
+
+export function parseOptionsFromString(optionsStr: string): { label: string; text: string }[] {
+  try {
+    const parsed = JSON.parse(optionsStr);
+    if (Array.isArray(parsed)) {
+      return parsed.map((o: any) => ({
+        label: o.label || '',
+        text: o.text || '',
+      }));
+    }
+  } catch {}
+  return [];
 }

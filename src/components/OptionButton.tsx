@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
-import { getOptionColor } from '../utils/answerChecker';
-import { getDisplayAnswer } from '../utils/shuffleUtils';
+import { getOptionColorBasedOnContent, getDisplayAnswerLabels } from '../utils/shuffleUtils';
 import { useAppStore } from '../stores/useAppStore';
 import type { AnswerStatus, ColorType, Question } from '../types';
 
@@ -19,7 +18,9 @@ interface OptionButtonProps {
   text: string;
   questionId: string;
   correctAnswer: string;
+  correctAnswerContent: string;
   selected: string[];
+  selectedContents: string[];
   status: AnswerStatus;
   locked?: boolean;
   question?: Question;
@@ -30,15 +31,22 @@ export default function OptionButton({
   text,
   questionId,
   correctAnswer,
+  correctAnswerContent,
   selected,
+  selectedContents,
   status,
   locked = false,
   question,
 }: OptionButtonProps) {
   const selectOption = useAppStore((state) => state.selectOption);
 
-  const displayAnswer = question ? getDisplayAnswer(question) : correctAnswer;
-  const color = getOptionColor(label, selected, displayAnswer, status);
+  const color = getOptionColorBasedOnContent(
+    question!,
+    label,
+    selectedContents,
+    correctAnswerContent,
+    status
+  );
   const colors = COLOR_MAP[color];
   const isDisabled = locked || status === 'locked' || status === 'correct' || status === 'wrong' || status === 'partial';
 

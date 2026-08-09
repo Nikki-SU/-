@@ -1,7 +1,7 @@
 import React, { useRef, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableWithoutFeedback, useWindowDimensions } from 'react-native';
 import { useAppStore } from '../stores/useAppStore';
-import { getDisplayAnswer } from '../utils/shuffleUtils';
+import { getDisplayAnswerLabels } from '../utils/shuffleUtils';
 import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 
 export default function ExplanationPage() {
@@ -28,7 +28,7 @@ export default function ExplanationPage() {
   }
 
   const progress = progressMap[question.id];
-  const yourAnswer = progress?.selected || [];
+  const yourAnswer = progress?.selectedContents || [];
 
   const handleScrollBegin = useCallback(() => {
     justScrolled.current = true;
@@ -92,7 +92,7 @@ export default function ExplanationPage() {
             <View style={styles.answerRow}>
               <Text style={styles.answerLabel}>正确答案：</Text>
               <Text style={[styles.answerValue, { color: '#4CAF50' }]}>
-                {getDisplayAnswer(question)}
+                {getDisplayAnswerLabels(question)}
               </Text>
             </View>
           </View>
@@ -110,9 +110,9 @@ export default function ExplanationPage() {
 
           <View style={styles.optionsSection}>
             <Text style={styles.optionsLabel}>选项详情：</Text>
-            {(question.shuffledOptions || question.options).map((option) => {
-              const isSelected = yourAnswer.includes(option.label);
-              const displayAnswer = getDisplayAnswer(question);
+            {question.options.map((option) => {
+              const isSelected = yourAnswer.includes(option.text);
+              const displayAnswer = getDisplayAnswerLabels(question);
               const isCorrect = displayAnswer.includes(option.label);
               
               let bgColor = '#F5F5F5';

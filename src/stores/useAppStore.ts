@@ -1483,20 +1483,56 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   advanceToNextQuestion: () => {
-    const { currentIndex } = get();
+    const { currentIndex, isInWrongBank } = get();
     const list = get().getCurrentQuestions();
-    if (currentIndex < list.length - 1) {
-      set({ currentIndex: currentIndex + 1, currentMode: 'question', phase: 'answer' });
+    const { wrongBankIds, progressMap } = get();
+    
+    // 检查错题本是否已经清空（所有错题都答对了）
+    if (isInWrongBank && wrongBankIds.length === 0) {
+      // 所有错题都答对了，重新进入错题本开启新一轮
+      get().showToast('🎉 所有错题已完成！开启新一轮');
+      get().enterWrongBank();
+      return;
+    }
+    
+    if (list.length === 0) {
+      set({ showSummary: true });
+      return;
+    }
+    
+    // 如果当前索引超出范围（错题移除后可能发生），调整到最后一题
+    const safeIndex = Math.min(currentIndex, list.length - 1);
+    
+    if (safeIndex < list.length - 1) {
+      set({ currentIndex: safeIndex + 1, currentMode: 'question', phase: 'answer' });
       serializeSave();
     } else {
-      const allAnswered = list.every(
-        (q) => get().progressMap[q.id]?.status !== 'unanswered'
-      );
-
-      if (allAnswered) {
-        set({ showSummary: true });
+      // 到达最后一题
+      if (isInWrongBank) {
+        // 在错题本中，检查是否所有错题都答对了
+        const allCorrect = wrongBankIds.length > 0 && wrongBankIds.every((id) => {
+          const p = progressMap[id];
+          return p && p.status === 'correct';
+        });
+        
+        if (allCorrect) {
+          // 所有错题都答对了，重新进入错题本开启新一轮
+          get().showToast('🎉 所有错题已完成！开启新一轮');
+          get().enterWrongBank();
+        } else {
+          // 还有错题没答对，显示解析
+          set({ phase: 'explanation' });
+        }
       } else {
-        get().showToast('还有题目未完成');
+        const allAnswered = list.every(
+          (q) => get().progressMap[q.id]?.status !== 'unanswered'
+        );
+
+        if (allAnswered) {
+          set({ showSummary: true });
+        } else {
+          get().showToast('还有题目未完成');
+        }
       }
     }
   },
@@ -1529,10 +1565,50 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   enterWrongBank: () => {
-    const { wrongBankIds, progressMap, wrongBankRound, questions, currentBankId, banks } = get();
+    let { wrongBankIds, progressMap, wrongBankRound, questions, currentBankId, banks, wrongBankCompletedIds } = get();
+    
+    // 检查是否需要重新添加错题（错题本为空时）
     if (wrongBankIds.length === 0) {
-      get().showToast('🎉 错题库已清空！');
-      return;
+      // 找出之前在错题本中答对的题目
+      const previouslyCorrectIds = wrongBankCompletedIds.filter((id) => {
+        const p = progressMap[id];
+        return p && p.status === 'correct';
+      });
+      
+      // 如果有之前答对的错题，重新添加它们作为新一轮
+      if (previouslyCorrectIds.length > 0) {
+        // 重置这些题目的状态
+        const newProgressMap = { ...progressMap };
+        previouslyCorrectIds.forEach((id) => {
+          if (newProgressMap[id]) {
+            newProgressMap[id] = {
+              ...newProgressMap[id],
+              status: 'unanswered',
+              locked: false,
+              selected: [],
+              selectedContents: [],
+            };
+          }
+        });
+        
+        // 更新状态
+        progressMap = newProgressMap;
+        wrongBankIds = previouslyCorrectIds;
+        wrongBankCompletedIds = [];
+        wrongBankRound = wrongBankRound + 1;
+        
+        set({
+          wrongBankIds,
+          wrongBankCompletedIds,
+          wrongBankRound,
+          progressMap,
+        });
+        get().showToast('🎉 新一轮错题挑战开始！');
+      } else {
+        get().showToast('🎉 错题库已清空！');
+        set({ isInWrongBank: false, currentIndex: 0, currentMode: 'question', phase: 'answer' });
+        return;
+      }
     }
 
     const newProgressMap = { ...progressMap };

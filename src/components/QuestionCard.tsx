@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableWithoutFeedback, Touchable
 import { useAppStore } from '../stores/useAppStore';
 import OptionButton from './OptionButton';
 import { getDisplayAnswer } from '../utils/shuffleUtils';
-import { responsiveWidth, responsiveHeight, responsiveFontSize } from '../utils/responsive';
+import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 import type { AnswerStatus } from '../types';
 
 export default function QuestionCard() {
@@ -171,34 +171,34 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     flex: 1,
-    paddingHorizontal: responsiveWidth(12),
-    paddingVertical: responsiveHeight(8),
+    paddingHorizontal: small.lg,
+    paddingVertical: heightSmall.md,
     justifyContent: 'space-between',
   },
   headerSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveHeight(4),
+    marginBottom: heightSmall.sm,
   },
   questionType: {
-    fontSize: responsiveFontSize(13),
+    fontSize: fontSmall.sm,
     color: '#4A90D9',
     fontWeight: '600',
   },
   lockedIndicator: {
-    fontSize: responsiveFontSize(12),
+    fontSize: fontSmall.xs,
     color: '#FF9800',
-    marginLeft: responsiveWidth(8),
+    marginLeft: small.md,
     fontWeight: '500',
   },
   questionSection: {
     flexShrink: 1,
-    marginBottom: responsiveHeight(6),
+    marginBottom: heightSmall.md,
   },
   contentText: {
-    fontSize: responsiveFontSize(16),
+    fontSize: fontSmall.md,
     color: '#333333',
-    lineHeight: responsiveFontSize(22),
+    lineHeight: fontSizePercent((22 * 100) / 390),
   },
   optionsSection: {
     flex: 1,
@@ -208,18 +208,18 @@ const styles = StyleSheet.create({
   actionBar: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingTop: responsiveHeight(6),
+    paddingTop: heightSmall.md,
   },
   explainBtn: {
-    paddingVertical: responsiveHeight(8),
-    paddingHorizontal: responsiveWidth(20),
+    paddingVertical: heightSmall.md,
+    paddingHorizontal: small.xl,
     backgroundColor: '#2196F3',
-    borderRadius: responsiveWidth(6),
+    borderRadius: small.md,
     alignItems: 'center',
   },
   explainBtnText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize(14),
+    fontSize: fontSmall.sm,
     fontWeight: '600',
   },
   emptyContainer: {
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: responsiveFontSize(16),
+    fontSize: fontSmall.md,
     color: '#999999',
   },
   explanationContainer: {
@@ -239,61 +239,61 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: responsiveHeight(10),
-    paddingHorizontal: responsiveWidth(12),
+    paddingVertical: heightSmall.md,
+    paddingHorizontal: small.lg,
     backgroundColor: '#2196F3',
   },
   explanationTitle: {
-    fontSize: responsiveFontSize(16),
+    fontSize: fontSmall.md,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: responsiveHeight(2),
+    marginBottom: heightSmall.xs,
   },
   explanationHint: {
-    fontSize: responsiveFontSize(12),
+    fontSize: fontSmall.xs,
     color: 'rgba(255, 255, 255, 0.8)',
   },
   explanationScroll: {
     flex: 1,
   },
   explanationContent: {
-    padding: responsiveWidth(12),
+    padding: small.lg,
   },
   explanationSection: {
-    marginBottom: responsiveHeight(12),
-    padding: responsiveWidth(8),
+    marginBottom: heightSmall.lg,
+    padding: small.md,
     backgroundColor: '#F8F9FA',
-    borderRadius: responsiveWidth(6),
+    borderRadius: small.md,
   },
   exLabel: {
-    fontSize: responsiveFontSize(13),
+    fontSize: fontSmall.sm,
     color: '#666666',
     fontWeight: '600',
-    marginBottom: responsiveHeight(4),
+    marginBottom: heightSmall.sm,
   },
   exContent: {
-    fontSize: responsiveFontSize(14),
+    fontSize: fontSmall.sm,
     color: '#333333',
-    lineHeight: responsiveFontSize(20),
+    lineHeight: fontSmall.xl,
   },
   exAnswer: {
-    fontSize: responsiveFontSize(14),
+    fontSize: fontSmall.sm,
     fontWeight: 'bold',
   },
   exOptionText: {
-    fontSize: responsiveFontSize(13),
-    lineHeight: responsiveFontSize(18),
-    marginBottom: responsiveHeight(2),
+    fontSize: fontSmall.sm,
+    lineHeight: fontSmall.lg,
+    marginBottom: heightSmall.xs,
   },
   explanationBottom: {
-    marginTop: responsiveHeight(12),
-    padding: responsiveWidth(10),
+    marginTop: heightSmall.lg,
+    padding: small.md,
     backgroundColor: '#E3F2FD',
-    borderRadius: responsiveWidth(6),
+    borderRadius: small.md,
     alignItems: 'center',
   },
   explanationBottomText: {
-    fontSize: responsiveFontSize(13),
+    fontSize: fontSmall.sm,
     color: '#2196F3',
     fontWeight: '600',
   },

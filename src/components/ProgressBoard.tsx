@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView } from 'react-native';
-import { responsiveWidth, responsiveHeight, responsiveFontSize } from '../utils/responsive';
+import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 import { useAppStore } from '../stores/useAppStore';
 import type { AnswerStatus } from '../types';
 
@@ -151,24 +151,24 @@ export default function ProgressBoard() {
 
 const styles = StyleSheet.create({
   compactContainer: {
-    height: responsiveHeight(32),
+    height: heightPercent((32 * 100) / 844),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: responsiveWidth(1),
+    borderBottomWidth: small.xs,
     borderBottomColor: '#E0E0E0',
   },
   dot: {
-    width: responsiveWidth(14),
-    height: responsiveHeight(14),
-    borderRadius: responsiveWidth(7),
-    marginHorizontal: responsiveWidth(6),
-    borderWidth: responsiveWidth(2),
+    width: small.lg,
+    height: heightSmall.lg,
+    borderRadius: small.md,
+    marginHorizontal: small.md,
+    borderWidth: small.xs,
     borderColor: '#FFFFFF',
   },
   dotActive: {
-    borderWidth: responsiveWidth(3),
+    borderWidth: small.sm,
     borderColor: '#4A90D9',
     transform: [{ scale: 1.2 }],
   },
@@ -182,35 +182,35 @@ const styles = StyleSheet.create({
     width: '85%',
     maxHeight: '80%',
     backgroundColor: '#FFFFFF',
-    borderRadius: responsiveWidth(12),
-    padding: responsiveWidth(14),
+    borderRadius: small.lg,
+    padding: small.lg,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: responsiveHeight(12),
+    marginBottom: heightSmall.lg,
   },
   modalTitle: {
-    fontSize: responsiveFontSize(16),
+    fontSize: fontSmall.md,
     fontWeight: 'bold',
     color: '#333333',
   },
   closeButton: {
-    fontSize: responsiveFontSize(18),
+    fontSize: fontSmall.lg,
     color: '#999999',
-    padding: responsiveWidth(6),
+    padding: small.md,
   },
   groupsContainer: {
-    maxHeight: responsiveHeight(280),
+    maxHeight: heightPercent((280 * 100) / 844),
   },
   groupContainer: {
-    marginBottom: responsiveHeight(12),
+    marginBottom: heightSmall.lg,
   },
   groupTitle: {
-    fontSize: responsiveFontSize(12),
+    fontSize: fontSmall.xs,
     color: '#666666',
-    marginBottom: responsiveHeight(6),
+    marginBottom: heightSmall.md,
     fontWeight: '600',
   },
   groupDots: {
@@ -218,18 +218,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   expandedDot: {
-    width: responsiveWidth(28),
-    height: responsiveHeight(28),
-    borderRadius: responsiveWidth(14),
-    marginHorizontal: responsiveWidth(4),
-    marginVertical: responsiveHeight(4),
+    width: widthPercent((28 * 100) / 390),
+    height: heightPercent((28 * 100) / 844),
+    borderRadius: small.lg,
+    marginHorizontal: small.sm,
+    marginVertical: heightSmall.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: responsiveWidth(2),
+    borderWidth: small.xs,
     borderColor: '#FFFFFF',
   },
   dotLabel: {
-    fontSize: responsiveFontSize(10),
+    fontSize: fontSmall.xs,
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
@@ -237,25 +237,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-around',
-    marginTop: responsiveHeight(12),
-    paddingTop: responsiveHeight(12),
-    borderTopWidth: responsiveWidth(1),
+    marginTop: heightSmall.lg,
+    paddingTop: heightSmall.lg,
+    borderTopWidth: small.xs,
     borderTopColor: '#E0E0E0',
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: responsiveWidth(6),
-    marginVertical: responsiveHeight(4),
+    marginHorizontal: small.md,
+    marginVertical: heightSmall.sm,
   },
   legendDot: {
-    width: responsiveWidth(12),
-    height: responsiveHeight(12),
-    borderRadius: responsiveWidth(6),
-    marginRight: responsiveWidth(4),
+    width: small.lg,
+    height: heightSmall.lg,
+    borderRadius: small.md,
+    marginRight: small.sm,
   },
   legendText: {
-    fontSize: responsiveFontSize(12),
+    fontSize: fontSmall.xs,
     color: '#666666',
   },
 });

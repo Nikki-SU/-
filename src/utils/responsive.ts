@@ -1,30 +1,42 @@
-import { Dimensions, PixelRatio } from 'react-native';
+import { Dimensions } from 'react-native';
 
-const BASE_WIDTH = 390;
-const BASE_HEIGHT = 844;
-
-export const responsiveWidth = (w: number): number => {
+export const widthPercent = (percent: number): number => {
   const { width } = Dimensions.get('window');
-  return (w / BASE_WIDTH) * width;
+  return (percent / 100) * width;
 };
 
-export const responsiveHeight = (h: number): number => {
+export const heightPercent = (percent: number): number => {
   const { height } = Dimensions.get('window');
-  return (h / BASE_HEIGHT) * height;
+  return (percent / 100) * height;
 };
 
-export const responsiveFontSize = (f: number): number => {
+export const fontSizePercent = (percent: number): number => {
   const { width } = Dimensions.get('window');
-  const scale = width / BASE_WIDTH;
-  return PixelRatio.roundToNearestPixel(f * scale);
+  return (percent / 100) * width;
 };
 
-export const responsivePadding = (p: number): number => {
-  return responsiveWidth(p);
+export const small = {
+  xs: widthPercent(1),
+  sm: widthPercent(1.5),
+  md: widthPercent(2),
+  lg: widthPercent(3),
+  xl: widthPercent(4),
 };
 
-export const responsiveMargin = (m: number): number => {
-  return responsiveHeight(m);
+export const fontSmall = {
+  xs: fontSizePercent(2.5),
+  sm: fontSizePercent(3),
+  md: fontSizePercent(3.5),
+  lg: fontSizePercent(4),
+  xl: fontSizePercent(5),
+};
+
+export const heightSmall = {
+  xs: heightPercent(0.5),
+  sm: heightPercent(1),
+  md: heightPercent(1.5),
+  lg: heightPercent(2),
+  xl: heightPercent(3),
 };
 
 export const getScreenWidth = (): number => {
@@ -39,7 +51,7 @@ export const getScreenHeight = (): number => {
 
 export const isTablet = (): boolean => {
   const { width } = Dimensions.get('window');
-  return width >= 768;
+  return width >= widthPercent(50);
 };
 
 export const isLandscapeMode = (): boolean => {

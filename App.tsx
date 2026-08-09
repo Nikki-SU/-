@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { responsiveWidth, responsiveHeight, responsiveFontSize } from './src/utils/responsive';
+import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from './src/utils/responsive';
 import { useAppStore } from './src/stores/useAppStore';
 import TopBar from './src/components/TopBar';
 import ProgressBoard from './src/components/ProgressBoard';
@@ -136,45 +136,45 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: '4%',
-    fontSize: responsiveFontSize(16),
+    fontSize: fontSizePercent((16 * 100) / 390),
     color: '#666666',
   },
   setupContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: responsiveWidth(32),
+    padding: widthPercent((32 * 100) / 390),
     backgroundColor: '#F5F7FA',
   },
   setupTitle: {
-    fontSize: responsiveFontSize(28),
+    fontSize: fontSizePercent((28 * 100) / 390),
     fontWeight: 'bold',
     color: '#333333',
-    marginBottom: responsiveHeight(16),
+    marginBottom: heightPercent((16 * 100) / 844),
   },
   setupDesc: {
-    fontSize: responsiveFontSize(16),
+    fontSize: fontSizePercent((16 * 100) / 390),
     color: '#666666',
     textAlign: 'center',
-    marginBottom: responsiveHeight(12),
-    lineHeight: responsiveFontSize(24),
+    marginBottom: heightPercent((12 * 100) / 844),
+    lineHeight: fontSizePercent((24 * 100) / 390),
   },
   setupNote: {
-    fontSize: responsiveFontSize(13),
+    fontSize: fontSizePercent((13 * 100) / 390),
     color: '#999999',
     textAlign: 'center',
-    marginBottom: responsiveHeight(32),
-    lineHeight: responsiveFontSize(20),
+    marginBottom: heightPercent((32 * 100) / 844),
+    lineHeight: fontSizePercent((20 * 100) / 390),
   },
   setupBtn: {
     backgroundColor: '#4A90D9',
-    paddingHorizontal: responsiveWidth(32),
-    paddingVertical: responsiveHeight(16),
-    borderRadius: responsiveWidth(12),
+    paddingHorizontal: widthPercent((32 * 100) / 390),
+    paddingVertical: heightPercent((16 * 100) / 844),
+    borderRadius: widthPercent((12 * 100) / 390),
   },
   setupBtnText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize(18),
+    fontSize: fontSizePercent((18 * 100) / 390),
     fontWeight: '600',
   },
 });

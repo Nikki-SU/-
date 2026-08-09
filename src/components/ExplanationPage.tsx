@@ -2,7 +2,7 @@ import React, { useRef, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableWithoutFeedback, useWindowDimensions } from 'react-native';
 import { useAppStore } from '../stores/useAppStore';
 import { getDisplayAnswer } from '../utils/shuffleUtils';
-import { responsiveWidth, responsiveHeight, responsiveFontSize } from '../utils/responsive';
+import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 
 export default function ExplanationPage() {
   const currentIndex = useAppStore((state) => state.currentIndex);
@@ -180,11 +180,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: responsiveWidth(16),
+    padding: small.xl,
   },
   landscapeContent: {
-    paddingVertical: responsiveHeight(12),
-    paddingHorizontal: responsiveWidth(24),
+    paddingVertical: heightSmall.lg,
+    paddingHorizontal: widthPercent((24 * 100) / 390),
   },
   emptyContainer: {
     flex: 1,
@@ -192,138 +192,138 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: responsiveFontSize(18),
+    fontSize: fontSmall.lg,
     color: '#999999',
   },
   statusHeader: {
     alignItems: 'center',
-    marginBottom: responsiveHeight(16),
+    marginBottom: heightSmall.xl,
   },
   statusBadge: {
-    paddingHorizontal: responsiveWidth(16),
-    paddingVertical: responsiveHeight(6),
-    borderRadius: responsiveWidth(20),
+    paddingHorizontal: small.xl,
+    paddingVertical: heightSmall.md,
+    borderRadius: small.xl,
   },
   statusText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize(15),
+    fontSize: fontSmall.md,
     fontWeight: 'bold',
   },
   questionSection: {
-    marginBottom: responsiveHeight(20),
+    marginBottom: heightPercent((20 * 100) / 844),
   },
   questionType: {
-    fontSize: responsiveFontSize(14),
+    fontSize: fontSmall.sm,
     color: '#4A90D9',
     fontWeight: '600',
-    marginBottom: responsiveHeight(10),
+    marginBottom: heightSmall.md,
   },
   questionContent: {
-    fontSize: responsiveFontSize(18),
+    fontSize: fontSmall.lg,
     color: '#333333',
-    lineHeight: responsiveFontSize(26),
+    lineHeight: fontSizePercent((26 * 100) / 390),
   },
   landscapeText: {
-    fontSize: responsiveFontSize(17),
-    lineHeight: responsiveFontSize(24),
+    fontSize: fontSmall.lg,
+    lineHeight: fontSizePercent((24 * 100) / 390),
   },
   answerSection: {
     backgroundColor: '#F8F9FA',
-    borderRadius: responsiveWidth(10),
-    padding: responsiveWidth(14),
-    marginBottom: responsiveHeight(16),
+    borderRadius: small.md,
+    padding: small.lg,
+    marginBottom: heightSmall.xl,
   },
   answerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveHeight(6),
+    marginBottom: heightSmall.md,
   },
   answerLabel: {
-    fontSize: responsiveFontSize(15),
+    fontSize: fontSmall.md,
     color: '#666666',
-    minWidth: responsiveWidth(80),
+    minWidth: widthPercent((80 * 100) / 390),
   },
   answerValue: {
-    fontSize: responsiveFontSize(16),
+    fontSize: fontSmall.md,
     fontWeight: 'bold',
   },
   explanationSection: {
-    marginBottom: responsiveHeight(16),
+    marginBottom: heightSmall.xl,
   },
   explanationHeader: {
-    marginBottom: responsiveHeight(10),
+    marginBottom: heightSmall.md,
   },
   explanationTitle: {
-    fontSize: responsiveFontSize(18),
+    fontSize: fontSmall.lg,
     fontWeight: 'bold',
     color: '#333333',
   },
   explanationCard: {
     backgroundColor: '#F5F7FA',
-    padding: responsiveWidth(16),
-    borderRadius: responsiveWidth(10),
+    padding: small.xl,
+    borderRadius: small.md,
   },
   landscapeCard: {
-    padding: responsiveWidth(12),
+    padding: small.lg,
   },
   explanationText: {
-    fontSize: responsiveFontSize(16),
+    fontSize: fontSmall.md,
     color: '#555555',
-    lineHeight: responsiveFontSize(24),
+    lineHeight: fontSizePercent((24 * 100) / 390),
   },
   optionsSection: {
-    marginTop: responsiveHeight(8),
+    marginTop: heightSmall.md,
   },
   optionsLabel: {
-    fontSize: responsiveFontSize(15),
+    fontSize: fontSmall.md,
     color: '#666666',
-    marginBottom: responsiveHeight(10),
+    marginBottom: heightSmall.md,
     fontWeight: '600',
   },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: responsiveHeight(12),
-    paddingHorizontal: responsiveWidth(14),
-    marginVertical: responsiveHeight(5),
-    borderRadius: responsiveWidth(10),
-    borderWidth: responsiveWidth(2),
+    paddingVertical: heightSmall.lg,
+    paddingHorizontal: small.lg,
+    marginVertical: heightSmall.sm,
+    borderRadius: small.md,
+    borderWidth: small.xs,
   },
   optionLabel: {
-    width: responsiveWidth(30),
-    height: responsiveHeight(30),
-    borderRadius: responsiveWidth(15),
+    width: widthPercent((30 * 100) / 390),
+    height: heightPercent((30 * 100) / 844),
+    borderRadius: widthPercent((15 * 100) / 390),
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: responsiveWidth(10),
+    marginRight: small.md,
   },
   optionLabelText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize(14),
+    fontSize: fontSmall.sm,
     fontWeight: 'bold',
   },
   optionText: {
     flex: 1,
-    fontSize: responsiveFontSize(15),
-    lineHeight: responsiveFontSize(22),
+    fontSize: fontSmall.md,
+    lineHeight: fontSizePercent((22 * 100) / 390),
   },
   optionIcon: {
-    fontSize: responsiveFontSize(18),
+    fontSize: fontSmall.lg,
     fontWeight: 'bold',
-    marginLeft: responsiveWidth(8),
+    marginLeft: small.md,
   },
   footerSpace: {
-    height: responsiveHeight(40),
+    height: heightPercent((40 * 100) / 844),
   },
   hintBar: {
-    padding: responsiveWidth(12),
+    padding: small.lg,
     backgroundColor: '#F5F7FA',
-    borderTopWidth: responsiveWidth(1),
+    borderTopWidth: small.xs,
     borderTopColor: '#EEEEEE',
     alignItems: 'center',
   },
   hintText: {
-    fontSize: responsiveFontSize(13),
+    fontSize: fontSmall.sm,
     color: '#999999',
   },
 });

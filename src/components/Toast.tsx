@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { responsiveWidth, responsiveHeight, responsiveFontSize } from '../utils/responsive';
+import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 import { useAppStore } from '../stores/useAppStore';
 
 export default function Toast() {
@@ -30,12 +30,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingHorizontal: '6%',
     paddingVertical: '3%',
-    borderRadius: responsiveWidth(20),
+    borderRadius: small.xl,
     maxWidth: '80%',
   },
   toastText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize(16),
+    fontSize: fontSmall.md,
     textAlign: 'center',
   },
 });

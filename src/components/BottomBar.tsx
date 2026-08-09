@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { responsiveWidth, responsiveHeight, responsiveFontSize } from '../utils/responsive';
+import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 import { useAppStore } from '../stores/useAppStore';
 
 export default function BottomBar() {
@@ -62,16 +62,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: responsiveWidth(12),
-    paddingVertical: responsiveHeight(8),
-    paddingBottom: responsiveHeight(10),
+    paddingHorizontal: small.lg,
+    paddingVertical: heightSmall.md,
+    paddingBottom: heightSmall.md,
     backgroundColor: '#FFFFFF',
-    borderTopWidth: responsiveWidth(1),
+    borderTopWidth: small.xs,
     borderTopColor: '#E0E0E0',
-    gap: responsiveWidth(8),
+    gap: small.md,
   },
   hintText: {
-    fontSize: responsiveFontSize(13),
+    fontSize: fontSmall.sm,
     color: '#999999',
     textAlign: 'center',
     width: '100%',
@@ -79,24 +79,24 @@ const styles = StyleSheet.create({
   dontKnowButton: {
     backgroundColor: '#9E9E9E',
     flex: 1,
-    height: responsiveHeight(40),
+    height: heightPercent((40 * 100) / 844),
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: responsiveWidth(6),
+    borderRadius: small.md,
   },
   submitButton: {
     backgroundColor: '#2196F3',
     flex: 1.5,
-    height: responsiveHeight(40),
+    height: heightPercent((40 * 100) / 844),
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: responsiveWidth(6),
+    borderRadius: small.md,
   },
   buttonDisabled: {
     opacity: 0.4,
   },
   buttonText: {
-    fontSize: responsiveFontSize(14),
+    fontSize: fontSmall.sm,
     fontWeight: '600',
     color: '#FFFFFF',
   },

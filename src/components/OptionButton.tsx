@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { responsiveWidth, responsiveHeight, responsiveFontSize } from '../utils/responsive';
+import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 import { getOptionColor } from '../utils/answerChecker';
 import { useAppStore } from '../stores/useAppStore';
 import type { AnswerStatus, ColorType } from '../types';
@@ -86,26 +86,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     minHeight: 0,
-    paddingVertical: responsiveHeight(6),
-    paddingHorizontal: responsiveWidth(10),
-    marginVertical: responsiveHeight(3),
-    borderRadius: responsiveWidth(6),
-    borderWidth: responsiveWidth(2),
+    paddingVertical: heightSmall.md,
+    paddingHorizontal: small.md,
+    marginVertical: heightSmall.sm,
+    borderRadius: small.md,
+    borderWidth: small.xs,
   },
   disabledContainer: {
     opacity: 0.95,
   },
   labelCircle: {
-    width: responsiveWidth(26),
-    height: responsiveHeight(26),
-    borderRadius: responsiveWidth(13),
+    width: widthPercent((26 * 100) / 390),
+    height: heightPercent((26 * 100) / 844),
+    borderRadius: small.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: responsiveWidth(10),
+    marginRight: small.md,
     flexShrink: 0,
   },
   labelText: {
-    fontSize: responsiveFontSize(14),
+    fontSize: fontSmall.sm,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
@@ -113,11 +113,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionText: {
-    fontSize: responsiveFontSize(14),
-    lineHeight: responsiveFontSize(18),
+    fontSize: fontSmall.sm,
+    lineHeight: fontSmall.lg,
   },
   lockIcon: {
-    fontSize: responsiveFontSize(12),
-    marginLeft: responsiveWidth(6),
+    fontSize: fontSmall.xs,
+    marginLeft: small.md,
   },
 });

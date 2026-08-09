@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { responsiveWidth, responsiveHeight, responsiveFontSize } from '../utils/responsive';
+import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 import { useAppStore } from '../stores/useAppStore';
 import { generateQuestionsMarkdown, downloadMarkdown } from '../utils/exportUtils';
 
@@ -128,10 +128,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: responsiveWidth(12),
-    paddingVertical: responsiveHeight(8),
+    paddingHorizontal: small.lg,
+    paddingVertical: heightSmall.md,
     backgroundColor: COLORS.background,
-    borderBottomWidth: responsiveWidth(1),
+    borderBottomWidth: small.xs,
     borderBottomColor: COLORS.border,
   },
   centerContainer: {
@@ -139,12 +139,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressText: {
-    fontSize: responsiveFontSize(15),
+    fontSize: fontSmall.md,
     fontWeight: '600',
     color: COLORS.text,
   },
   bankNameText: {
-    fontSize: responsiveFontSize(11),
+    fontSize: fontSmall.xs,
     color: COLORS.primary,
     fontWeight: '600',
     maxWidth: '60%',
@@ -155,11 +155,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconButton: {
-    padding: responsiveWidth(6),
-    marginHorizontal: responsiveWidth(4),
+    padding: small.md,
+    marginHorizontal: small.sm,
   },
   iconText: {
-    fontSize: responsiveFontSize(18),
+    fontSize: fontSmall.lg,
     color: COLORS.starInactive,
   },
 });

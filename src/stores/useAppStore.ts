@@ -633,6 +633,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
 
     await persistBanksToFiles(newBanks, newBank.id);
+    serializeSave();
     get().showToast(`导入成功，共 ${questions.length} 题`);
     return true;
   },
@@ -717,6 +718,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const activeBankId = newBanksToAdd[0].id;
       await persistBanksToFiles(newBanks, activeBankId);
+      serializeSave();
     }
 
     const successCount = results.filter(r => r.questionsCount > 0).length;

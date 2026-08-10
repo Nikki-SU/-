@@ -30,13 +30,13 @@ function findQuestionBoundaries(text: string): number[] {
     const trimmed = lines[i].trim();
 
     if (/^##\s+/.test(trimmed)) {
-      if (/题目|第.+题|Question|问题|化学/.test(trimmed) || /^##\s+\d/.test(trimmed)) {
+      if (/^##\s*(第\s*\d+\s*题|\d+[.、)）]|Question|问题|化学/.test(trimmed) || /^##\s+\d/.test(trimmed)) {
         header2Boundaries.push(i);
       }
     }
 
     if (/^#{1,3}\s+/.test(trimmed)) {
-      if (/题目|第.+题|Question|问题|化学/.test(trimmed) || /^#{1,3}\s+\d/.test(trimmed) || header3Or1Boundaries.length === 0) {
+      if (/^#{1,3}\s*(第\s*\d+\s*题|\d+[.、)）]|Question|问题|化学/.test(trimmed) || /^#{1,3}\s+\d/.test(trimmed) || header3Or1Boundaries.length === 0) {
         header3Or1Boundaries.push(i);
       }
     }
@@ -134,12 +134,102 @@ function extractContent(lines: string[]): string {
       continue;
     }
 
+    if (/<table[\s\S]*?<\/table>/i.test(trimmed)) {
+      if (inContent) {
+        contentParts.push('[表格选项]');
+      }
+      continue;
+    }
+
     if (inContent || (!/^#{1,3}\s/.test(trimmed) && !/^\*\*/.test(trimmed))) {
       contentParts.push(trimmed);
     }
   }
 
   return contentParts.join('\n').trim();
+}
+
+function extractOptionsFromHTML(lines: string[]): { options: Option[]; labels: string[] } | null {
+  const fullText = lines.join('\n');
+  const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+  const options: Option[] = [];
+  let match;
+
+  while ((match = tableRegex.exec(fullText)) !== null) {
+    const innerHTML = match[1];
+    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    let rowMatch;
+
+    while ((rowMatch = rowRegex.exec(innerHTML)) !== null) {
+      const rowHTML = rowMatch[1];
+      const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+      const cells: string[] = [];
+      let cellMatch;
+
+      while ((cellMatch = cellRegex.exec(rowHTML)) !== null) {
+        cells.push(cellMatch[1].trim());
+      }
+
+      if (cells.length >= 2) {
+        const firstCell = cells[0].trim();
+        if (/^[A-F]$/.test(firstCell)) {
+          const label = firstCell;
+          const text = cells.slice(1).join(' | ').trim();
+          if (text) {
+            options.push({
+              label,
+              text,
+              originalIndex: options.length,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  if (options.length === 0) return null;
+
+  const labels = options.map(o => o.label).sort();
+  return { options, labels };
+}
+
+function extractOptionsFromSequential(lines: string[], existingLabels: string[]): { options: Option[]; labels: string[] } | null {
+  if (existingLabels.length >= 2) return null;
+
+  const optionMap = new Map<string, string>();
+  const nonEmptyLines: string[] = [];
+  let foundLabeledOption = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/^#{1,3}\s+/.test(trimmed)) continue;
+    if (/^答案[：:]/.test(trimmed) || /^解析[：:]/.test(trimmed)) break;
+    if (/^[A-F][.．、)）]\s+/.test(trimmed) || /^\*\*[A-F]\*\*[.．、)）]\s+/.test(trimmed)) {
+      foundLabeledOption = true;
+      break;
+    }
+    if (!/<table|<\/table|<\/tr|<\/td/i.test(trimmed)) {
+      nonEmptyLines.push(trimmed);
+    }
+  }
+
+  if (foundLabeledOption) return null;
+  if (nonEmptyLines.length < 2 || nonEmptyLines.length > 8) return null;
+
+  for (let i = 0; i < nonEmptyLines.length; i++) {
+    const label = String.fromCharCode(65 + i);
+    optionMap.set(label, nonEmptyLines[i]);
+  }
+
+  const labels = Array.from(optionMap.keys()).sort();
+  const options: Option[] = labels.map((label, idx) => ({
+    label,
+    text: optionMap.get(label) || '',
+    originalIndex: idx,
+  }));
+
+  return { options, labels };
 }
 
 function extractOptions(lines: string[]): { options: Option[]; labels: string[] } {
@@ -166,6 +256,10 @@ function extractOptions(lines: string[]): { options: Option[]; labels: string[] 
       if (currentLabel) {
         flushCurrentOption();
       }
+      continue;
+    }
+
+    if (/<table[\s\S]*?<\/table>/i.test(trimmed)) {
       continue;
     }
 
@@ -207,12 +301,26 @@ function extractOptions(lines: string[]): { options: Option[]; labels: string[] 
   
   flushCurrentOption();
 
-  const labels = Array.from(optionMap.keys()).sort();
-  const options: Option[] = labels.map((label, idx) => ({
+  let labels = Array.from(optionMap.keys()).sort();
+  let options: Option[] = labels.map((label, idx) => ({
     label,
     text: optionMap.get(label) || '',
     originalIndex: idx,
   }));
+
+  if (options.length < 2) {
+    const htmlResult = extractOptionsFromHTML(lines);
+    if (htmlResult && htmlResult.options.length >= 2) {
+      return htmlResult;
+    }
+  }
+
+  if (options.length < 2) {
+    const seqResult = extractOptionsFromSequential(lines, labels);
+    if (seqResult && seqResult.options.length >= 2) {
+      return seqResult;
+    }
+  }
 
   return { options, labels };
 }

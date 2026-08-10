@@ -207,9 +207,8 @@ export async function autoRestoreDirectory(): Promise<boolean> {
   if (!path) return false;
 
   try {
-    const handle = await loadDirHandleFromIDDB();
+    const handle = await getDirHandle();
     if (handle) {
-      _dirHandle = handle;
       return true;
     }
   } catch (e) {

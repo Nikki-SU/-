@@ -126,7 +126,7 @@ export default function QuestionCard() {
   return (
     <View style={styles.container}>
       <TouchableWithoutFeedback onPress={handleCardTap} disabled={!isLocked}>
-        <View style={styles.cardContent}>
+        <ScrollView style={styles.cardScroll} contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
           <View style={styles.headerSection}>
             <Text style={styles.questionType}>{questionType}</Text>
             {isLocked && (
@@ -169,7 +169,7 @@ export default function QuestionCard() {
               </TouchableOpacity>
             )}
           </View>
-        </View>
+        </ScrollView>
       </TouchableWithoutFeedback>
     </View>
   );
@@ -180,11 +180,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  cardContent: {
+  cardScroll: {
     flex: 1,
+  },
+  cardContent: {
     paddingHorizontal: small.lg,
     paddingVertical: heightSmall.md,
-    justifyContent: 'flex-start',
+    flexGrow: 1,
   },
   headerSection: {
     flexDirection: 'row',

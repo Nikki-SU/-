@@ -19,6 +19,16 @@ export function parseMarkdownToQuestions(markdown: string): Question[] {
   return result.questions;
 }
 
+function isQuestionHeader(trimmed: string): boolean {
+  if (/第\s*\d+\s*题/.test(trimmed)) return true;
+  if (/^\s*\d+[.．)）]/.test(trimmed)) return true;
+  if (/^\s*\d+[、]/.test(trimmed)) return true;
+  if (/Question/i.test(trimmed)) return true;
+  if (/问题/.test(trimmed)) return true;
+  if (/^\s*\d+\s*$/.test(trimmed)) return true;
+  return false;
+}
+
 function findQuestionBoundaries(text: string): number[] {
   const lines = text.split('\n');
 
@@ -30,13 +40,13 @@ function findQuestionBoundaries(text: string): number[] {
     const trimmed = lines[i].trim();
 
     if (/^##\s+/.test(trimmed)) {
-      if (/^##\s*(第\s*\d+\s*题|\d+[.、)）]|Question|问题|化学/.test(trimmed) || /^##\s+\d/.test(trimmed)) {
+      if (isQuestionHeader(trimmed)) {
         header2Boundaries.push(i);
       }
     }
 
     if (/^#{1,3}\s+/.test(trimmed)) {
-      if (/^#{1,3}\s*(第\s*\d+\s*题|\d+[.、)）]|Question|问题|化学/.test(trimmed) || /^#{1,3}\s+\d/.test(trimmed) || header3Or1Boundaries.length === 0) {
+      if (isQuestionHeader(trimmed) || header3Or1Boundaries.length === 0) {
         header3Or1Boundaries.push(i);
       }
     }
@@ -100,6 +110,7 @@ function splitIntoBlocks(markdown: string): string[] {
 function extractContent(lines: string[]): string {
   const contentParts: string[] = [];
   let inContent = false;
+  let inTable = false;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -122,26 +133,49 @@ function extractContent(lines: string[]): string {
       continue;
     }
 
-    if (/^答案[：:]/.test(trimmed) || /^解析[：:]/.test(trimmed)) {
+    if (/^答案[：:]/.test(trimmed) || /^解析[：:]/.test(trimmed) || /^参考答案[：:]/.test(trimmed)) {
+      inContent = false;
+      continue;
+    }
+
+    if (/^逐一分析/.test(trimmed) || /^逐一解答/.test(trimmed) || /^分析[：:]/.test(trimmed)) {
       inContent = false;
       continue;
     }
 
     if (/^[A-F][.．、)）]\s+/.test(trimmed) || 
+        /^[A-F][.．、)）]\S/.test(trimmed) ||
         /^\*\*[A-F]\*\*[.．、)）]\s+/.test(trimmed) ||
-        /^[A-F][.．、)）]\s*$/.test(trimmed)) {
+        /^[A-F][.．、)）]\s*$/.test(trimmed) ||
+        /^-\s*\*\*[A-F]\*\*/.test(trimmed) ||
+        /^-\s*[A-F][.．、)）]/.test(trimmed)) {
       inContent = false;
       continue;
     }
 
-    if (/<table[\s\S]*?<\/table>/i.test(trimmed)) {
-      if (inContent) {
-        contentParts.push('[表格选项]');
+    if (/<table[^>]*>/i.test(trimmed)) {
+      inTable = true;
+    }
+    if (inTable) {
+      if (/<\/table>/i.test(trimmed)) {
+        inTable = false;
       }
       continue;
     }
 
-    if (inContent || (!/^#{1,3}\s/.test(trimmed) && !/^\*\*/.test(trimmed))) {
+    if (/<\/tr>|<\/td>|<tr[^>]*>|<td[^>]*>/i.test(trimmed)) {
+      continue;
+    }
+
+    if (/[A-F][.．、)）]\s*\S/.test(trimmed) && !/^#{1,3}\s/.test(trimmed) && !/^\*\*/.test(trimmed)) {
+      const match = trimmed.match(/([A-F][.．、)）]\s*\S)/);
+      if (match && trimmed.indexOf(match[0]) <= 5) {
+        inContent = false;
+        continue;
+      }
+    }
+
+    if (inContent || (!/^#{1,3}\s/.test(trimmed) && !/^\*\*/.test(trimmed) && !/^-\s*\*\*[A-F]/.test(trimmed) && !/^-\s*[A-F][.．、)）]/.test(trimmed))) {
       contentParts.push(trimmed);
     }
   }
@@ -232,10 +266,47 @@ function extractOptionsFromSequential(lines: string[], existingLabels: string[])
   return { options, labels };
 }
 
+function extractOptionsFromSingleLine(lines: string[]): { options: Option[]; labels: string[] } | null {
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const matches = [];
+    const regex = /([A-F])[.．、)）]([^\s])/g;
+    let m;
+    while ((m = regex.exec(trimmed)) !== null) {
+      matches.push({ label: m[1], index: m.index });
+    }
+    if (matches.length >= 2) {
+      const optionMap = new Map<string, string>();
+      for (let i = 0; i < matches.length; i++) {
+        const current = matches[i];
+        const startIdx = current.index + 2;
+        let endIdx = trimmed.length;
+        if (i < matches.length - 1) {
+          endIdx = matches[i + 1].index;
+        }
+        const text = trimmed.slice(startIdx, endIdx).trim();
+        optionMap.set(current.label, text);
+      }
+      if (optionMap.size >= 2) {
+        const labels = Array.from(optionMap.keys()).sort();
+        const options: Option[] = labels.map((label, idx) => ({
+          label,
+          text: optionMap.get(label) || '',
+          originalIndex: idx,
+        }));
+        return { options, labels };
+      }
+    }
+  }
+  return null;
+}
+
 function extractOptions(lines: string[]): { options: Option[]; labels: string[] } {
   const optionStartRegex = /^([A-F])[.．、)）\s]+(.+)$/;
+  const optionStartNoSpaceRegex = /^([A-F])[.．、)）]([^\s])/;
   const optionStartBoldRegex = /^\*\*([A-F])\*\*[.．、)）\s]+(.+)$/;
   const optionLabelOnlyRegex = /^([A-F])[.．、)）]\s*$/;
+  const embeddedOptionRegex = /([A-F])[.．、)）](\s+|[^\s])/;
   
   const optionMap = new Map<string, string>();
   let currentLabel: string | null = null;
@@ -259,6 +330,11 @@ function extractOptions(lines: string[]): { options: Option[]; labels: string[] 
       continue;
     }
 
+    if (/^答案[：:]/.test(trimmed) || /^参考答案[：:]/.test(trimmed) || /^正确答案[：:]/.test(trimmed)) {
+      if (currentLabel) flushCurrentOption();
+      break;
+    }
+
     if (/<table[\s\S]*?<\/table>/i.test(trimmed)) {
       continue;
     }
@@ -279,6 +355,15 @@ function extractOptions(lines: string[]): { options: Option[]; labels: string[] 
       continue;
     }
 
+    match = trimmed.match(optionStartNoSpaceRegex);
+    if (match) {
+      flushCurrentOption();
+      currentLabel = match[1];
+      const idx = trimmed.indexOf(match[0]);
+      currentText = [trimmed.slice(idx + match[0].length).trim()];
+      continue;
+    }
+
     match = trimmed.match(optionLabelOnlyRegex);
     if (match) {
       flushCurrentOption();
@@ -287,8 +372,24 @@ function extractOptions(lines: string[]): { options: Option[]; labels: string[] 
       continue;
     }
 
+    const embeddedMatch = trimmed.match(embeddedOptionRegex);
+    if (embeddedMatch && !currentLabel) {
+      const label = embeddedMatch[1];
+      const idx = trimmed.indexOf(`${label}.`);
+      if (idx >= 0) {
+        const afterLabel = trimmed.slice(idx + 2);
+        if (afterLabel.length > 0 && !/^\s*[A-F][.．、)）]/.test(afterLabel)) {
+          flushCurrentOption();
+          currentLabel = label;
+          currentText = [afterLabel.trim()];
+          continue;
+        }
+      }
+    }
+
     if (currentLabel) {
       if (/^[A-F][.．、)）]\s+/.test(trimmed) || 
+          /^[A-F][.．、)）]\S/.test(trimmed) ||
           /^\*\*[A-F]\*\*[.．、)）]\s+/.test(trimmed) ||
           /^答案[：:]/.test(trimmed) ||
           /^解析[：:]/.test(trimmed)) {
@@ -301,12 +402,46 @@ function extractOptions(lines: string[]): { options: Option[]; labels: string[] 
   
   flushCurrentOption();
 
-  let labels = Array.from(optionMap.keys()).sort();
-  let options: Option[] = labels.map((label, idx) => ({
+  for (const [label, text] of [...optionMap.entries()]) {
+    const nextLabelRegex = /([A-F])[.．、)）]([^\s])/g;
+    const matches = [];
+    let nm;
+    while ((nm = nextLabelRegex.exec(text)) !== null) {
+      matches.push({ label: nm[1], index: nm.index });
+    }
+    if (matches.length > 0) {
+      const firstMatch = matches[0];
+      const cleanFirstText = text.slice(0, firstMatch.index).trim();
+      optionMap.set(label, cleanFirstText);
+      
+      for (const m of matches) {
+        const startIdx = m.index + 2;
+        let endIdx = text.length;
+        const nextMatch = matches.find(x => x.index > m.index);
+        if (nextMatch) {
+          endIdx = nextMatch.index;
+        }
+        const partText = text.slice(startIdx, endIdx).trim();
+        if (!optionMap.has(m.label)) {
+          optionMap.set(m.label, partText);
+        }
+      }
+    }
+  }
+
+  const labels = Array.from(optionMap.keys()).sort();
+  const options = labels.map((label, idx) => ({
     label,
     text: optionMap.get(label) || '',
     originalIndex: idx,
   }));
+
+  if (options.length < 2) {
+    const singleLineOptions = extractOptionsFromSingleLine(lines);
+    if (singleLineOptions && singleLineOptions.options.length >= 2) {
+      return singleLineOptions;
+    }
+  }
 
   if (options.length < 2) {
     const htmlResult = extractOptionsFromHTML(lines);
@@ -319,6 +454,38 @@ function extractOptions(lines: string[]): { options: Option[]; labels: string[] 
     const seqResult = extractOptionsFromSequential(lines, labels);
     if (seqResult && seqResult.options.length >= 2) {
       return seqResult;
+    }
+  }
+
+  if (options.length < 2 && embeddedOptionRegex.test(lines.join('\n'))) {
+    const allText = lines.join('\n');
+    const optionRegex = /([A-F])[.．、)）](\s+|[^\s])/g;
+    let m;
+    const tempMap = new Map<string, string>();
+    while ((m = optionRegex.exec(allText)) !== null) {
+      const label = m[1];
+      if (!tempMap.has(label)) {
+        const startIdx = allText.indexOf(`${label}.`);
+        const nextLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
+        let endIdx = allText.length;
+        for (const nl of nextLabels) {
+          if (nl !== label) {
+            const nextIdx = allText.indexOf(`${nl}.`, startIdx + 2);
+            if (nextIdx > startIdx && nextIdx < endIdx) endIdx = nextIdx;
+          }
+        }
+        const text = allText.slice(startIdx + 2, endIdx).replace(/\n$/, '').trim();
+        tempMap.set(label, text);
+      }
+    }
+    if (tempMap.size >= 2) {
+      labels = Array.from(tempMap.keys()).sort();
+      options = labels.map((label, idx) => ({
+        label,
+        text: tempMap.get(label) || '',
+        originalIndex: idx,
+      }));
+      return { options, labels };
     }
   }
 
@@ -448,19 +615,26 @@ export function parseMarkdownWithValidation(markdown: string): ParseResult {
 
     const validAnswers = optionLabels.join('');
     const answerChars = answer.split('');
+    const validAnswerChars = answerChars.filter(ch => validAnswers.includes(ch));
     let answerValid = true;
-    for (const ch of answerChars) {
-      if (!validAnswers.includes(ch)) {
-        errors.push({
-          blockIndex: blockIndex + 1,
-          lineNumber: blockStartLine + 1,
-          lineContent: `答案：${answer}`,
-          message: `答案中的 "${ch}" 不在选项 ${optionLabels.join('、')} 中`,
-        });
-        answerValid = false;
-      }
+    if (validAnswerChars.length === 0 && answerChars.length > 0) {
+      errors.push({
+        blockIndex: blockIndex + 1,
+        lineNumber: blockStartLine + 1,
+        lineContent: `答案：${answer}`,
+        message: `答案 "${answer}" 中的所有字符均不在选项 ${optionLabels.join('、')} 中，使用第一个选项作为答案`,
+      });
+      answerValid = false;
+    } else if (validAnswerChars.length < answerChars.length) {
+      errors.push({
+        blockIndex: blockIndex + 1,
+        lineNumber: blockStartLine + 1,
+        lineContent: `答案：${answer}`,
+        message: `答案中的部分字符（${answerChars.filter(ch => !validAnswers.includes(ch)).join('、')}）不在选项 ${optionLabels.join('、')} 中，已忽略`,
+      });
     }
-    if (!answerValid) continue;
+
+    const effectiveAnswer = validAnswerChars.length > 0 ? validAnswerChars.join('') : (optionLabels[0] || 'A');
 
     const content = extractContent(lines);
     if (!content) {
@@ -473,9 +647,9 @@ export function parseMarkdownWithValidation(markdown: string): ParseResult {
     }
 
     const explanation = extractExplanation(lines);
-    const type = answer.length === 1 ? 'single' : 'multi';
+    const type = effectiveAnswer.length === 1 ? 'single' : 'multi';
 
-    const answerContent = answer.split('').map((label) => {
+    const answerContent = effectiveAnswer.split('').map((label) => {
       const opt = options.find(o => o.label === label);
       return opt ? opt.text : '';
     }).filter(Boolean).join('|||');
@@ -487,7 +661,7 @@ export function parseMarkdownWithValidation(markdown: string): ParseResult {
       title,
       content: content || '（无题干）',
       options,
-      answer,
+      answer: effectiveAnswer,
       answerContent,
       explanation,
       type,

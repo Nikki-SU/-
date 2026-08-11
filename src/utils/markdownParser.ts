@@ -119,8 +119,8 @@ function extractContent(lines: string[]): string {
       continue;
     }
 
-    if (/^#{1,3}\s+/.test(trimmed) && !inContent) {
-      if (/题目|第.+题/.test(trimmed)) {
+    if (/^#{1,3}\s+/.test(trimmed)) {
+      if (!inContent && /题目|第.+题/.test(trimmed)) {
         inContent = true;
       }
       continue;
@@ -138,7 +138,7 @@ function extractContent(lines: string[]): string {
       continue;
     }
 
-    if (/^逐一分析/.test(trimmed) || /^逐一解答/.test(trimmed) || /^分析[：:]/.test(trimmed)) {
+    if (/^逐一分析/.test(trimmed) || /^逐一解答/.test(trimmed)) {
       inContent = false;
       continue;
     }
@@ -146,9 +146,22 @@ function extractContent(lines: string[]): string {
     if (/^[A-F][.．、)）]\s+/.test(trimmed) || 
         /^[A-F][.．、)）]\S/.test(trimmed) ||
         /^\*\*[A-F]\*\*[.．、)）]\s+/.test(trimmed) ||
-        /^[A-F][.．、)）]\s*$/.test(trimmed) ||
-        /^-\s*\*\*[A-F]\*\*/.test(trimmed) ||
-        /^-\s*[A-F][.．、)）]/.test(trimmed)) {
+        /^[A-F][.．、)）]\s*$/.test(trimmed)) {
+      inContent = false;
+      continue;
+    }
+
+    if (/^-\s*\*\*[A-F]\*\*/.test(trimmed)) {
+      inContent = false;
+      continue;
+    }
+
+    if (/^-\s*[A-F][.．、)）]/.test(trimmed)) {
+      inContent = false;
+      continue;
+    }
+
+    if (/^-\s/.test(trimmed) && (/[✓✗✔✘]/.test(trimmed) || /知识点/.test(trimmed))) {
       inContent = false;
       continue;
     }
@@ -167,15 +180,7 @@ function extractContent(lines: string[]): string {
       continue;
     }
 
-    if (/[A-F][.．、)）]\s*\S/.test(trimmed) && !/^#{1,3}\s/.test(trimmed) && !/^\*\*/.test(trimmed)) {
-      const match = trimmed.match(/([A-F][.．、)）]\s*\S)/);
-      if (match && trimmed.indexOf(match[0]) <= 5) {
-        inContent = false;
-        continue;
-      }
-    }
-
-    if (inContent || (!/^#{1,3}\s/.test(trimmed) && !/^\*\*/.test(trimmed) && !/^-\s*\*\*[A-F]/.test(trimmed) && !/^-\s*[A-F][.．、)）]/.test(trimmed))) {
+    if (inContent) {
       contentParts.push(trimmed);
     }
   }
@@ -514,11 +519,10 @@ function extractAnswer(lines: string[]): string {
 
 function extractExplanation(lines: string[]): string {
   const explanationPatterns = [
-    /解析[：:]\s*\**\s*(.+)/,
-    /解析[：:]\s*(.+)/,
-    /答案解析[：:]\s*(.+)/,
-    /分析[：:]\s*(.+)/,
-    /详解[：:]\s*(.+)/,
+    /解析[：:]\s*\**\s*(.*)/,
+    /答案解析[：:]\s*(.*)/,
+    /分析[：:]\s*(.*)/,
+    /详解[：:]\s*(.*)/,
   ];
   
   const explanationParts: string[] = [];
@@ -538,7 +542,7 @@ function extractExplanation(lines: string[]): string {
       for (const pattern of explanationPatterns) {
         const match = trimmed.match(pattern);
         if (match) {
-          if (match[1]) {
+          if (match[1] && match[1].trim()) {
             explanationParts.push(match[1].trim());
           }
           collectingExplanation = true;
@@ -546,9 +550,10 @@ function extractExplanation(lines: string[]): string {
         }
       }
     } else {
-      if (/^[A-F][.．、)）]\s+/.test(trimmed) || 
-          /^\*\*[A-F]\*\*[.．、)）]\s+/.test(trimmed) ||
-          /^答案[：:]/.test(trimmed)) {
+      if (/^#{1,3}\s/.test(trimmed) && /第.+题/.test(trimmed)) {
+        break;
+      }
+      if (/^答案[：:]/.test(trimmed) && explanationParts.length > 1) {
         break;
       }
       explanationParts.push(trimmed);

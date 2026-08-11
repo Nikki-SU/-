@@ -28,7 +28,7 @@ import {
   downloadZipBlob,
   extractZipFiles,
 } from '../utils/zipUtils';
-import { parseMarkdownWithValidation, parseMarkdownToQuestions, type ParseError } from '../utils/markdownParser';
+import { parseMarkdownWithValidation, parseMarkdownToQuestions, preprocessMarkdown, type ParseError } from '../utils/markdownParser';
 import { shuffleQuestionOptions, shuffleAllQuestions, shuffleArray, checkAnswerByContent, getDisplayAnswerLabels, getUserSelectedLabels } from '../utils/shuffleUtils';
 import { exportBothFiles } from '../utils/exportUtils';
 import type {
@@ -644,7 +644,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     for (const file of files) {
       const bankName = file.name.replace(/\.md$/i, '').replace(/\.markdown$/i, '');
-      const parseResult = parseMarkdownWithValidation(file.content);
+      const preprocessedContent = preprocessMarkdown(file.content);
+      const parseResult = parseMarkdownWithValidation(preprocessedContent);
 
       if (parseResult.questions.length === 0) {
         results.push({
@@ -2091,7 +2092,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       if (fileName.endsWith('.md') || fileName.endsWith('.markdown')) {
-        const parseResult = parseMarkdownWithValidation(content);
+        const preprocessedContent = preprocessMarkdown(content);
+        const parseResult = parseMarkdownWithValidation(preprocessedContent);
         if (parseResult.questions.length === 0) {
           get().showToast('Markdown文件解析失败，请检查格式');
           return false;

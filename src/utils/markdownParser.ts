@@ -15,8 +15,113 @@ export interface ParseResult {
 }
 
 export function parseMarkdownToQuestions(markdown: string): Question[] {
-  const result = parseMarkdownWithValidation(markdown);
+  const preprocessed = preprocessMarkdown(markdown);
+  const result = parseMarkdownWithValidation(preprocessed);
   return result.questions;
+}
+
+export function preprocessMarkdown(markdown: string): string {
+  let result = markdown;
+
+  // Remove markdown formatting (bold, italic) - keep plain text
+  result = result.replace(/\*\*(.+?)\*\*/g, '$1');
+  result = result.replace(/\*(.+?)\*/g, '$1');
+  result = result.replace(/__(.+?)__/g, '$1');
+  result = result.replace(/_(.+?)_/g, '$1');
+
+  // Remove inline code
+  result = result.replace(/`([^`]+)`/g, '$1');
+
+  // Remove image references
+  result = result.replace(/!\[.*?\]\(.*?\)/g, '[图片]');
+
+  // Process HTML tables into option format
+  result = result.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (match, tableContent) => {
+    // Extract rows
+    const rows = [];
+    const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    let trMatch;
+    while ((trMatch = trRegex.exec(tableContent)) !== null) {
+      const rowContent = trMatch[1];
+      const cells = [];
+      const tdRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+      let tdMatch;
+      while ((tdMatch = tdRegex.exec(rowContent)) !== null) {
+        const cellText = tdMatch[1].replace(/<[^>]+>/g, '').trim();
+        if (cellText) cells.push(cellText);
+      }
+      if (cells.length > 0) rows.push(cells);
+    }
+
+    // If it looks like an option table (has A, B, C, D labels), format as options
+    const options = [];
+    for (const row of rows) {
+      if (row.length >= 2) {
+        const [label, ...rest] = row;
+        const content = rest.join(' ');
+        if (/^[A-F]$/.test(label.toUpperCase())) {
+          options.push(`${label.toUpperCase()}. ${content}`);
+        }
+      }
+    }
+
+    if (options.length >= 2) {
+      return '\n' + options.join('\n') + '\n';
+    }
+
+    // Otherwise, just extract cell text
+    const cells = [];
+    const tdRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+    let tdMatch;
+    while ((tdMatch = tdRegex.exec(tableContent)) !== null) {
+      const cellText = tdMatch[1].replace(/<[^>]+>/g, '').trim();
+      if (cellText) cells.push(cellText);
+    }
+    return cells.join(' | ');
+  });
+
+  // Remove other HTML tags but keep text
+  result = result.replace(/<[^>]+>/g, '');
+
+  // Split inline options to separate lines (case: "A.contentB.content")
+  // Pattern: option label followed by non-space then another option label
+  result = result.replace(
+    /([A-F])[.．、)）]([^\s\[])(?=[A-F][.．、)])/g,
+    '$1. $2\n'
+  );
+
+  // Also handle case where options are on same line with spaces
+  // Find lines containing multiple option labels
+  result = result.replace(
+    /([A-F])[.．、)）]\s+([^\n]*?)(?=\s+[A-F][.．、)])/g,
+    '\n$1. $2'
+  );
+
+  // Split options that are directly concatenated without proper newlines
+  // This handles: "A.contentB.content" pattern
+  result = result.replace(
+    /([A-F])[.．、)）]\s*([^\s\n])([A-F])[.．、)）]/g,
+    '$1. $2\n$3. '
+  );
+
+  // Normalize option labels with no space (A.text -> A. text) - but only if not already separated
+  result = result.replace(/^([A-F])[.．、)）]([^\s])/gm, '$1. $2');
+
+  // Remove bullet points before explanations
+  result = result.replace(/^\s*[-*]\s+([A-F])[.．、)）]/gm, '$1. ');
+  result = result.replace(/^\s*[-*]\s+/gm, '');
+
+  // Remove check/cross marks but keep text
+  result = result.replace(/[✓✗✔✘]/g, '');
+
+  // Clean up multiple blank lines
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  // Ensure consistent answer format
+  result = result.replace(/答案[：:]\s*/g, '答案：');
+  result = result.replace(/解析[：:]\s*/g, '解析：');
+
+  return result;
 }
 
 function isQuestionHeader(trimmed: string): boolean {

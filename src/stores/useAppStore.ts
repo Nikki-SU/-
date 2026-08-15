@@ -29,6 +29,7 @@ import {
   extractZipFiles,
 } from '../utils/zipUtils';
 import { parseMarkdownWithValidation, parseMarkdownToQuestions, preprocessMarkdown, type ParseError } from '../utils/markdownParser';
+import { parseCSVToQuestions, type CSVParseError } from '../utils/csvImport';
 import { shuffleQuestionOptions, shuffleAllQuestions, shuffleArray, checkAnswerByContent, getDisplayAnswerLabels, getUserSelectedLabels } from '../utils/shuffleUtils';
 import { exportBothFiles } from '../utils/exportUtils';
 import type {
@@ -55,6 +56,7 @@ export interface ImportFileResult {
   questionsCount: number;
   errors: ParseError[];
   skippedErrors: ParseError[];
+  csvErrors?: CSVParseError[];
 }
 
 export interface BatchImportResult {
@@ -63,6 +65,8 @@ export interface BatchImportResult {
   successCount: number;
   failCount: number;
 }
+
+export type ImportMode = 'csv' | 'markdown';
 
 let _isSaving = false;
 let _needsSave = false;
@@ -372,6 +376,7 @@ interface AppState {
 
   addBank: (name: string, markdown: string) => Promise<boolean>;
   importMarkdownFiles: (files: { name: string; content: string }[]) => Promise<BatchImportResult>;
+  importCSVFiles: (files: { name: string; content: string }[]) => Promise<BatchImportResult>;
   switchBank: (bankId: string) => Promise<void>;
   deleteBank: (bankId: string) => Promise<void>;
   renameBank: (bankId: string, name: string) => Promise<void>;
@@ -698,6 +703,116 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (newBanksToAdd.length > 0) {
       const { banks, currentBankId } = get();
+      const newBanks = [...banks, ...newBanksToAdd];
+
+      set({
+        banks: newBanks,
+        currentBankId: newBanksToAdd[0].id,
+        questions: newBanksToAdd[0].questions,
+        progressMap: newBanksToAdd[0].progressMap,
+        wrongBankIds: newBanksToAdd[0].wrongBankIds,
+        favoritesIds: newBanksToAdd[0].favoritesIds,
+        wrongBankRound: 0,
+        wrongBankCompletedIds: [],
+        currentIndex: 0,
+        currentMode: 'question',
+        phase: 'answer',
+        isInWrongBank: false,
+        showSummary: false,
+        showHome: false,
+      });
+
+      const activeBankId = newBanksToAdd[0].id;
+      await persistBanksToFiles(newBanks, activeBankId);
+      serializeSave();
+    }
+
+    const successCount = results.filter(r => r.questionsCount > 0).length;
+    const failCount = results.filter(r => r.questionsCount === 0).length;
+
+    return {
+      results,
+      totalFiles: files.length,
+      successCount,
+      failCount,
+    };
+  },
+
+  importCSVFiles: async (files: { name: string; content: string }[]) => {
+    const results: ImportFileResult[] = [];
+    const newBanksToAdd: Bank[] = [];
+
+    for (const file of files) {
+      const bankName = file.name.replace(/\.csv$/i, '');
+      const parseResult = parseCSVToQuestions(file.content);
+
+      if (parseResult.questions.length === 0) {
+        const csvErrors: ParseError[] = parseResult.errors.map((e) => ({
+          blockIndex: e.rowIndex,
+          lineNumber: e.rowIndex + 1,
+          lineContent: e.lineContent,
+          message: e.message,
+        }));
+
+        results.push({
+          fileName: file.name,
+          bankName,
+          success: false,
+          questionsCount: 0,
+          errors: csvErrors,
+          skippedErrors: csvErrors,
+          csvErrors: parseResult.errors,
+        });
+        continue;
+      }
+
+      const { questions: rawQuestions } = parseResult;
+      const questions = rawQuestions.map(initQuestionWithShuffled);
+      const progressMap: Record<string, Progress> = {};
+      questions.forEach((q) => {
+        progressMap[q.id] = {
+          questionId: q.id,
+          selected: [],
+          selectedContents: [],
+          status: 'unanswered',
+          locked: false,
+        };
+      });
+
+      const bank: Bank = {
+        id: generateId(),
+        name: bankName,
+        questions,
+        progressMap,
+        wrongBankIds: [],
+        favoritesIds: [],
+        wrongBankRound: 0,
+        wrongBankCompletedIds: [],
+        shuffledVersion: 0,
+        created: Date.now(),
+      };
+      newBanksToAdd.push(bank);
+
+      const csvErrors: ParseError[] = parseResult.errors.map((e) => ({
+        blockIndex: e.rowIndex,
+        lineNumber: e.rowIndex + 1,
+        lineContent: e.lineContent,
+        message: e.message,
+      }));
+
+      results.push({
+        fileName: file.name,
+        bankName,
+        success: parseResult.errors.length === 0,
+        questionsCount: questions.length,
+        errors: csvErrors,
+        skippedErrors: csvErrors,
+        csvErrors: parseResult.errors,
+      });
+    }
+
+    if (newBanksToAdd.length > 0) {
+      const { banks } = get();
       const newBanks = [...banks, ...newBanksToAdd];
 
       set({

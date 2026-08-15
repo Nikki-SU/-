@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { useAppStore, type BatchImportResult, type ImportFileResult } from '../stores/useAppStore';
+import { useAppStore, type BatchImportResult, type ImportFileResult, type ImportMode } from '../stores/useAppStore';
 import { isFileSystemAccessSupported, clearDirHandle, readUploadedFile, downloadFile } from '../utils/fileStorage';
 import { buildPrompt, AI_GENERATOR_PROMPT } from '../utils/promptTemplate';
+import { generateCSVTemplates } from '../utils/csvImport';
 import type { Bank } from '../types';
 import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 
@@ -22,11 +23,13 @@ export default function HomePage() {
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [showWrongDetail, setShowWrongDetail] = useState(false);
   const [showFavDetail, setShowFavDetail] = useState(false);
+  const [importMode, setImportMode] = useState<ImportMode>('csv');
 
   const banks = useAppStore((state) => state.banks);
   const currentBankId = useAppStore((state) => state.currentBankId);
   const addBank = useAppStore((state) => state.addBank);
   const importMarkdownFiles = useAppStore((state) => state.importMarkdownFiles);
+  const importCSVFiles = useAppStore((state) => state.importCSVFiles);
   const switchBank = useAppStore((state) => state.switchBank);
   const deleteBank = useAppStore((state) => state.deleteBank);
   const renameBank = useAppStore((state) => state.renameBank);
@@ -74,29 +77,57 @@ export default function HomePage() {
     setImportResult(null);
 
     try {
-      const fileDataPromises = files
-        .filter(f => f.name.toLowerCase().endsWith('.md') || f.name.toLowerCase().endsWith('.markdown'))
-        .map(async (f) => ({
-          name: f.name,
-          content: await readUploadedFile(f),
-        }));
+      if (importMode === 'csv') {
+        const fileDataPromises = files
+          .filter(f => f.name.toLowerCase().endsWith('.csv'))
+          .map(async (f) => ({
+            name: f.name,
+            content: await readUploadedFile(f),
+          }));
 
-      const fileData = await Promise.all(fileDataPromises);
+        const fileData = await Promise.all(fileDataPromises);
 
-      if (fileData.length === 0) {
-        showToast('请选择 .md 格式的文件');
-        setIsImporting(false);
-        return;
-      }
+        if (fileData.length === 0) {
+          showToast('请选择 .csv 格式的文件');
+          setIsImporting(false);
+          return;
+        }
 
-      const result = await importMarkdownFiles(fileData);
-      setImportResult(result);
+        const result = await importCSVFiles(fileData);
+        setImportResult(result);
 
-      if (result.successCount > 0) {
-        const firstSuccess = result.results.find(r => r.questionsCount > 0);
-        if (firstSuccess) {
-          setShowImport(false);
-          setShowHome(false);
+        if (result.successCount > 0) {
+          const firstSuccess = result.results.find(r => r.questionsCount > 0);
+          if (firstSuccess) {
+            setShowImport(false);
+            setShowHome(false);
+          }
+        }
+      } else {
+        const fileDataPromises = files
+          .filter(f => f.name.toLowerCase().endsWith('.md') || f.name.toLowerCase().endsWith('.markdown'))
+          .map(async (f) => ({
+            name: f.name,
+            content: await readUploadedFile(f),
+          }));
+
+        const fileData = await Promise.all(fileDataPromises);
+
+        if (fileData.length === 0) {
+          showToast('请选择 .md 格式的文件');
+          setIsImporting(false);
+          return;
+        }
+
+        const result = await importMarkdownFiles(fileData);
+        setImportResult(result);
+
+        if (result.successCount > 0) {
+          const firstSuccess = result.results.find(r => r.questionsCount > 0);
+          if (firstSuccess) {
+            setShowImport(false);
+            setShowHome(false);
+          }
         }
       }
     } catch (e) {
@@ -105,7 +136,7 @@ export default function HomePage() {
     } finally {
       setIsImporting(false);
     }
-  }, [importMarkdownFiles, setShowHome, showToast]);
+  }, [importMode, importMarkdownFiles, importCSVFiles, setShowHome, showToast]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
@@ -209,12 +240,23 @@ export default function HomePage() {
 
         {showFormatHelp && (
           <View style={styles.helpBox}>
-            <Text style={styles.helpTitle}>📋 Markdown 格式要求</Text>
-            <Text style={styles.helpText}>• 支持 --- 分隔符 或 ## 标题 或 编号 格式</Text>
-            <Text style={styles.helpText}>• 选项格式：A. 选项内容（依次 A→B→C→D）</Text>
-            <Text style={styles.helpText}>• 答案格式：答案：A（单选）或 答案：ABCD（多选）</Text>
-            <Text style={styles.helpText}>• 解析格式：**解析：** 内容（可选）</Text>
-            <Text style={styles.helpText}>• 文件名为题库名称</Text>
+            <Text style={styles.helpTitle}>📋 CSV 格式要求（推荐）</Text>
+            <Text style={styles.helpText}>• 使用 Tab 分隔各列</Text>
+            <Text style={styles.helpText}>• 列顺序：题号 | 题干 | 选项A | 选项B | 选项C | 选项D | 选项E | 选项F | 正确答案内容 | 解析</Text>
+            <Text style={styles.helpText}>• 多选题答案用换行分隔每个正确选项</Text>
+            <Text style={styles.helpText}>• 解析内容支持换行</Text>
+            <Text style={styles.helpText}>• 空列请留空（如选项E、F不需要时留空）</Text>
+
+            <TouchableOpacity
+              style={styles.sampleButton}
+              onPress={() => {
+                downloadFile('CSV导入模板.tsv', generateCSVTemplates(), 'text/tab-separated-values');
+                showToast('已下载 CSV 模板');
+              }}
+            >
+              <Text style={styles.sampleButtonText}>📥 下载 CSV 模板</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.promptGenButton}
               onPress={() => setShowPromptGenerator(!showPromptGenerator)}
@@ -289,10 +331,33 @@ export default function HomePage() {
                 </Text>
               </View>
             )}
+
+            <View style={styles.markdownHelpBox}>
+              <Text style={styles.helpTitle}>📝 Markdown 格式（备选）</Text>
+              <Text style={styles.helpText}>• 支持 --- 分隔符 或 ## 标题 或 编号 格式</Text>
+              <Text style={styles.helpText}>• 选项格式：A. 选项内容（依次 A→B→C→D）</Text>
+              <Text style={styles.helpText}>• 答案格式：答案：A（单选）或 答案：ABCD（多选）</Text>
+              <Text style={styles.helpText}>• 解析格式：**解析：** 内容（可选）</Text>
+            </View>
           </View>
         )}
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: heightPercent((20 * 100) / 844) }}>
+          <View style={styles.modeSelector}>
+            <TouchableOpacity
+              style={[styles.modeButton, importMode === 'csv' && styles.modeButtonActive]}
+              onPress={() => setImportMode('csv')}
+            >
+              <Text style={[styles.modeButtonText, importMode === 'csv' && styles.modeButtonTextActive]}>CSV 导入（推荐）</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeButton, importMode === 'markdown' && styles.modeButtonActive]}
+              onPress={() => setImportMode('markdown')}
+            >
+              <Text style={[styles.modeButtonText, importMode === 'markdown' && styles.modeButtonTextActive]}>Markdown 导入</Text>
+            </TouchableOpacity>
+          </View>
+
           {!importResult ? (
             <View
               style={[styles.dropZone, isDragging && styles.dropZoneActive]}
@@ -310,8 +375,10 @@ export default function HomePage() {
                 </>
               ) : (
                 <>
-                  <Text style={styles.dropIcon}>📂</Text>
-                  <Text style={styles.dropTitle}>拖拽 .md 文件到这里</Text>
+                  <Text style={styles.dropIcon}>{importMode === 'csv' ? '📊' : '📂'}</Text>
+                  <Text style={styles.dropTitle}>
+                    拖拽 {importMode === 'csv' ? '.csv' : '.md'} 文件到这里
+                  </Text>
                   <Text style={styles.dropSubtitle}>支持多文件批量导入</Text>
                   <TouchableOpacity
                     style={styles.browseButton}
@@ -326,7 +393,7 @@ export default function HomePage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".md,.markdown"
+                accept={importMode === 'csv' ? '.csv' : '.md,.markdown'}
                 multiple
                 style={{ display: 'none' }}
                 onChange={async (e) => {
@@ -890,6 +957,7 @@ export default function HomePage() {
 function ResultCard({ result, onSelect }: { result: ImportFileResult; onSelect: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const hasErrors = result.errors.length > 0;
+  const isCSVImport = result.csvErrors !== undefined;
 
   return (
     <View style={[styles.resultCard, result.questionsCount === 0 && styles.resultCardError]}>
@@ -918,9 +986,10 @@ function ResultCard({ result, onSelect }: { result: ImportFileResult; onSelect: 
             <View style={styles.errorsList}>
               {result.errors.map((err, idx) => (
                 <View key={idx} style={styles.errorItem}>
-                  <Text style={styles.errorBlock}>第 {err.blockIndex} 题块</Text>
+                  <Text style={styles.errorBlock}>
+                    {isCSVImport ? `第 ${err.lineNumber} 行` : `第 ${err.blockIndex} 题块`}
+                  </Text>
                   <Text style={styles.errorMsg}>{err.message}</Text>
-                  <Text style={styles.errorLine}>位置：第 {err.lineNumber} 行</Text>
                   {err.lineContent ? (
                     <Text style={styles.errorContent} numberOfLines={2}>
                       {err.lineContent}
@@ -936,7 +1005,7 @@ function ResultCard({ result, onSelect }: { result: ImportFileResult; onSelect: 
           )}
 
           {result.questionsCount > 0 && result.errors.length > 0 && (
-            <Text style={styles.partialText}>⚠ 部分题目格式有问题，已跳过 {result.errors.length} 个题目块</Text>
+            <Text style={styles.partialText}>⚠ 部分题目格式有问题，已跳过 {result.errors.length} 个题目</Text>
           )}
 
           {result.questionsCount > 0 && (
@@ -1124,6 +1193,39 @@ const styles = StyleSheet.create({
     marginBottom: heightSmall.xl,
     borderWidth: small.xs,
     borderColor: '#FFE082',
+  },
+  markdownHelpBox: {
+    marginTop: heightSmall.lg,
+    paddingTop: heightSmall.lg,
+    borderTopWidth: small.xs,
+    borderTopColor: '#FFE082',
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    marginBottom: heightSmall.md,
+    gap: small.sm,
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: heightSmall.md,
+    paddingHorizontal: small.md,
+    borderRadius: small.md,
+    borderWidth: small.xs,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: '#4A90D9',
+    borderColor: '#4A90D9',
+  },
+  modeButtonText: {
+    fontSize: fontSmall.sm,
+    color: '#666',
+    fontWeight: '500',
+  },
+  modeButtonTextActive: {
+    color: '#FFFFFF',
   },
   helpTitle: {
     fontSize: fontSmall.md,

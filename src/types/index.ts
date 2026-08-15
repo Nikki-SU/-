@@ -41,6 +41,42 @@ export interface Bank {
   created: number;
 }
 
+/**
+ * 二进制状态编码：收藏正确已答
+ * 位2: 是否收藏 (0/1)
+ * 位1: 是否正确 (0/1)
+ * 位0: 是否已答 (0/1)
+ * 
+ * 状态值：
+ * 000 未答、错误、未收藏
+ * 001 答过、错误、未收藏
+ * 011 答过、正确、未收藏
+ * 101 答过、错误、已收藏
+ * 111 答过、正确、已收藏
+ */
+export function encodeState(answered: boolean, isCorrect: boolean, isFav: boolean): string {
+  const bit2 = isFav ? 1 : 0;
+  const bit1 = isCorrect ? 1 : 0;
+  const bit0 = answered ? 1 : 0;
+  return `${bit2}${bit1}${bit0}`;
+}
+
+export function decodeState(state: string): { answered: boolean; isCorrect: boolean; isFav: boolean } {
+  if (!state || state.length < 3) {
+    return { answered: false, isCorrect: false, isFav: false };
+  }
+  const bit2 = state[0] === '1';
+  const bit1 = state[1] === '1';
+  const bit0 = state[2] === '1';
+  return { answered: bit0, isCorrect: bit1, isFav: bit2 };
+}
+
+export function stateToAnswerStatus(state: string): AnswerStatus {
+  const { answered, isCorrect } = decodeState(state);
+  if (!answered) return 'unanswered';
+  return isCorrect ? 'correct' : 'wrong';
+}
+
 export interface QuestionCSVRow {
   index: string;
   题干: string;
@@ -53,8 +89,7 @@ export interface QuestionCSVRow {
   正确答案内容: string;
   答案解析: string;
   题型: string;
-  是否已答: string;
-  答题状态: string;
+  状态: string;
   轮次: string;
   已选内容: string;
 }

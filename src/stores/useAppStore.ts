@@ -32,7 +32,7 @@ import { parseMarkdownWithValidation, parseMarkdownToQuestions, preprocessMarkdo
 import { parseCSVToQuestions, type CSVParseError } from '../utils/csvImport';
 import { shuffleQuestionOptions, shuffleAllQuestions, shuffleArray, checkAnswerByContent, getDisplayAnswerLabels, getUserSelectedLabels } from '../utils/shuffleUtils';
 import { exportBothFiles } from '../utils/exportUtils';
-import type {
+import {
   Question,
   Progress,
   AnswerStatus,
@@ -47,6 +47,9 @@ import type {
   FavoriteCSVRow,
   WrongCSVRow,
   BankIndexRow,
+  encodeState,
+  decodeState,
+  stateToAnswerStatus,
 } from '../types';
 
 export interface ImportFileResult {
@@ -83,10 +86,11 @@ function sanitizeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, '_');
 }
 
-function questionToCSVRow(q: Question, progress?: Progress): QuestionCSVRow {
+function questionToCSVRow(q: Question, progress?: Progress, isFav?: boolean): QuestionCSVRow {
   const opt = q.options;
-  const status = progress?.status || 'unanswered';
-  const answered = progress && progress.status !== 'unanswered' ? 'true' : 'false';
+  const answered = !!(progress && progress.status !== 'unanswered');
+  const isCorrect = progress?.status === 'correct';
+  const state = encodeState(answered, isCorrect, !!isFav);
   const round = progress?.round ?? 0;
   const selectedContents = progress?.selectedContents || [];
 
@@ -102,8 +106,7 @@ function questionToCSVRow(q: Question, progress?: Progress): QuestionCSVRow {
     正确答案内容: q.answerContent,
     答案解析: q.explanation,
     题型: q.type,
-    是否已答: answered,
-    答题状态: status,
+    状态: state,
     轮次: String(round),
     已选内容: selectedContents.join('|||'),
   };
@@ -188,14 +191,17 @@ async function loadBanksFromFiles(): Promise<{ banks: Bank[]; currentBankId: str
       const progressMap: Record<string, Progress> = {};
       questions.forEach((q) => {
         const csvRow = csvQuestions.find(r => String(r.index) === String(q.index));
-        let status = csvRow?.答题状态 as AnswerStatus || 'unanswered';
+        let status: AnswerStatus = 'unanswered';
+        
+        if (csvRow?.状态) {
+          status = stateToAnswerStatus(csvRow.状态);
+        } else if ((csvRow as any)?.答题状态) {
+          // 兼容旧格式
+          status = (csvRow as any).答题状态 as AnswerStatus;
+        }
+        
         const round = csvRow?.轮次 ? parseInt(csvRow.轮次) : 0;
         const selectedContents = csvRow?.已选内容 ? csvRow.已选内容.split('|||').filter(Boolean) : [];
-        
-        // 如果状态是 'locked'，根据选中内容重新计算正确状态
-        if (status === 'locked' && selectedContents.length > 0) {
-          status = checkAnswerByContent(selectedContents, q.answerContent, q.type);
-        }
         
         // 根据 selectedContents 和当前打乱的选项重新计算 selected 标签
         const selected = selectedContents.map((content) => {
@@ -313,7 +319,7 @@ async function fileSyncSaveAll(state: ReturnType<typeof useAppStore.getState>) {
       const safeName = sanitizeFileName(currentBank.name);
 
       const questionRows: QuestionCSVRow[] = questions.map(q => 
-        questionToCSVRow(q, progressMap[q.id])
+        questionToCSVRow(q, progressMap[q.id], favoritesIds.includes(q.id))
       );
       await writeCSV(`${safeName}.csv`, questionRows, SUB_DIRS.QUESTIONS);
 
@@ -439,8 +445,10 @@ async function performSave(state: ReturnType<typeof useAppStore.getState>) {
   const questionRows: QuestionCSVRow[] = questions.map(q => {
     const opt = q.options;
     const progress = progressMap[q.id];
-    const status = progress?.status || 'unanswered';
-    const answered = progress && progress.status !== 'unanswered' ? 'true' : 'false';
+    const answered = !!(progress && progress.status !== 'unanswered');
+    const isCorrect = progress?.status === 'correct';
+    const isFav = favoritesIds.includes(q.id);
+    const state = encodeState(answered, isCorrect, isFav);
     const round = progress?.round ?? 0;
     const selectedContents = progress?.selectedContents || [];
     return {
@@ -455,8 +463,7 @@ async function performSave(state: ReturnType<typeof useAppStore.getState>) {
       正确答案内容: q.answerContent,
       答案解析: q.explanation,
       题型: q.type,
-      是否已答: answered,
-      答题状态: status,
+      状态: state,
       轮次: String(round),
       已选内容: selectedContents.join('|||'),
     };
@@ -1967,9 +1974,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       const questionRows: QuestionCSVRow[] = bank.questions.map(q => {
         const opt = q.options;
         const progress = bank.progressMap[q.id];
-        const status = progress?.status || 'unanswered';
-        const answered = progress && progress.status !== 'unanswered' ? 'true' : 'false';
+        const answered = !!(progress && progress.status !== 'unanswered');
+        const isCorrect = progress?.status === 'correct';
+        const isFav = bank.favoritesIds.includes(q.id);
+        const state = encodeState(answered, isCorrect, isFav);
         const round = progress?.round ?? 0;
+        const selectedContents = progress?.selectedContents || [];
         return {
           index: String(q.index),
           题干: q.content,
@@ -1982,9 +1992,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           正确答案内容: q.answerContent,
           答案解析: q.explanation,
           题型: q.type,
-          是否已答: answered,
-          答题状态: status,
+          状态: state,
           轮次: String(round),
+          已选内容: selectedContents.join('|||'),
         };
       });
       await writeCSV(`bank_${bank.id}_questions.csv`, questionRows);

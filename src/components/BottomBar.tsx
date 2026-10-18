@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
 import { useAppStore } from '../stores/useAppStore';
+import { colors, fontFamily, fontSize, radius, spacing, shadow } from '../utils/theme';
 
 export default function BottomBar() {
   const currentIndex = useAppStore((state) => state.currentIndex);
@@ -25,7 +25,7 @@ export default function BottomBar() {
   if (isLocked) {
     return (
       <View style={styles.container}>
-        <Text style={styles.hintText}>题目已锁定，请点击卡片进入下一题</Text>
+        <Text style={styles.hintText}>点击卡片进入下一题</Text>
       </View>
     );
   }
@@ -35,22 +35,25 @@ export default function BottomBar() {
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={styles.dontKnowButton}
+        style={[styles.button, styles.dontKnowButton]}
         onPress={() => markDontKnow(question.id)}
+        activeOpacity={0.8}
       >
-        <Text style={styles.buttonText}>不会</Text>
+        <Text style={styles.dontKnowText}>不会</Text>
       </TouchableOpacity>
 
       {isMultiSelect && (
         <TouchableOpacity
           style={[
+            styles.button,
             styles.submitButton,
             progress?.selected.length === 0 && styles.buttonDisabled,
           ]}
           onPress={() => submitAnswer(question.id)}
           disabled={progress?.selected.length === 0}
+          activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>提交</Text>
+          <Text style={styles.submitText}>提交</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -61,43 +64,53 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: small.lg,
-    paddingVertical: heightSmall.md,
-    paddingBottom: heightSmall.md,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: small.xs,
-    borderTopColor: '#E0E0E0',
-    gap: small.md,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.paper,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    gap: spacing.md,
   },
   hintText: {
-    fontSize: fontSmall.sm,
-    color: '#999999',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textFaint,
     textAlign: 'center',
     width: '100%',
   },
-  dontKnowButton: {
-    backgroundColor: '#9E9E9E',
+  button: {
     flex: 1,
-    height: heightPercent((40 * 100) / 844),
+    height: 46,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: small.md,
+    borderRadius: radius.md,
+  },
+  dontKnowButton: {
+    backgroundColor: colors.paperDeep,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
   },
   submitButton: {
-    backgroundColor: '#2196F3',
-    flex: 1.5,
-    height: heightPercent((40 * 100) / 844),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: small.md,
+    flex: 1.4,
+    backgroundColor: colors.primary,
+    ...shadow.soft,
   },
   buttonDisabled: {
     opacity: 0.4,
   },
-  buttonText: {
-    fontSize: fontSmall.sm,
+  dontKnowText: {
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textMuted,
+    letterSpacing: 1,
+  },
+  submitText: {
+    fontFamily,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    color: colors.white,
+    letterSpacing: 1,
   },
 });

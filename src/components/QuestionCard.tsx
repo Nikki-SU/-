@@ -3,8 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableWithoutFeedback, Touchable
 import { useAppStore } from '../stores/useAppStore';
 import OptionButton from './OptionButton';
 import { getDisplayAnswerLabels } from '../utils/shuffleUtils';
-import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
-import type { AnswerStatus } from '../types';
+import { colors, fontFamily, fontSize, radius, spacing } from '../utils/theme';
 
 export default function QuestionCard() {
   const currentIndex = useAppStore((state) => state.currentIndex);
@@ -39,7 +38,7 @@ export default function QuestionCard() {
 
   const [showExplanation, setShowExplanation] = React.useState(false);
   const lastScrollTimeRef = React.useRef(0);
-  
+
   React.useEffect(() => {
     if (phase === 'explanation') {
       setShowExplanation(true);
@@ -56,66 +55,77 @@ export default function QuestionCard() {
       }
       advanceToNextQuestion();
     };
-    
+
+    const handleScrollBegin = () => {
+      lastScrollTimeRef.current = Date.now();
+    };
+
     return (
       <View style={styles.explanationContainer}>
         <View style={styles.explanationHeader}>
-          <Text style={styles.explanationTitle}>💡 题目解析</Text>
-          <Text style={styles.explanationHint}>点击任意位置进入下一题</Text>
+          <Text style={styles.explanationTitle}>题目解析</Text>
+          <Text style={styles.explanationHint}>轻触任意处进入下一题</Text>
         </View>
         <TouchableWithoutFeedback onPress={handleExplanationTap}>
-          <ScrollView 
+          <ScrollView
             style={styles.explanationScroll}
+            contentContainerStyle={styles.explanationContent}
             showsVerticalScrollIndicator={false}
+            onScrollBeginDrag={handleScrollBegin}
           >
-            <View style={styles.explanationContent}>
-              <View style={styles.explanationSection}>
-                <Text style={styles.exLabel}>题目：</Text>
-                <Text style={styles.exContent}>{question.content}</Text>
-              </View>
-              <View style={styles.explanationSection}>
-                <Text style={styles.exLabel}>选项：</Text>
-                {question.options.map((opt) => {
-                  const isSelected = selectedContents.includes(opt.text);
-                  const displayAnswer = getDisplayAnswerLabels(question);
-                  const isCorrect = displayAnswer.includes(opt.label);
-                  let color = '#666';
-                  if (isSelected && isCorrect) color = '#4CAF50';
-                  else if (isSelected && !isCorrect) color = '#F44336';
-                  else if (!isSelected && isCorrect) color = '#FF9800';
-                  return (
-                    <Text key={opt.label} style={[styles.exOptionText, { color }]}>
-                      {opt.label}. {opt.text}
-                    </Text>
-                  );
-                })}
-              </View>
-              <View style={styles.explanationSection}>
-                <Text style={styles.exLabel}>你的答案：</Text>
-                <Text style={[styles.exAnswer, { color: status === 'correct' ? '#4CAF50' : '#F44336' }]}>
-                  {selectedContents.length > 0 
-                    ? selectedContents.map(c => {
-                        const opt = question.options.find(o => o.text === c);
-                        return opt ? `${opt.label}. ${c}` : c;
-                      }).join(', ')
+            <View style={styles.explanationSection}>
+              <Text style={styles.exLabel}>题目</Text>
+              <Text style={styles.exContent}>{question.content}</Text>
+            </View>
+
+            <View style={styles.explanationSection}>
+              <Text style={styles.exLabel}>选项</Text>
+              {question.options.map((opt) => {
+                const isSelected = selectedContents.includes(opt.text);
+                const displayAnswer = getDisplayAnswerLabels(question);
+                const isCorrect = displayAnswer.includes(opt.label);
+                let tone = colors.textMuted;
+                if (isSelected && isCorrect) tone = colors.success;
+                else if (isSelected && !isCorrect) tone = colors.danger;
+                else if (!isSelected && isCorrect) tone = colors.warning;
+                return (
+                  <Text key={opt.label} style={[styles.exOptionText, { color: tone }]}>
+                    {opt.label}. {opt.text}
+                  </Text>
+                );
+              })}
+            </View>
+
+            <View style={styles.answerGrid}>
+              <View style={styles.answerCell}>
+                <Text style={styles.exLabel}>你的答案</Text>
+                <Text
+                  style={[
+                    styles.exAnswer,
+                    { color: status === 'correct' ? colors.success : colors.danger },
+                  ]}
+                >
+                  {selectedContents.length > 0
+                    ? selectedContents
+                        .map((c) => {
+                          const opt = question.options.find((o) => o.text === c);
+                          return opt ? `${opt.label}. ${c}` : c;
+                        })
+                        .join('，')
                     : '未作答'}
                 </Text>
               </View>
-              <View style={styles.explanationSection}>
-                <Text style={styles.exLabel}>正确答案：</Text>
-                <Text style={[styles.exAnswer, { color: '#4CAF50' }]}>
+              <View style={styles.answerCell}>
+                <Text style={styles.exLabel}>正确答案</Text>
+                <Text style={[styles.exAnswer, { color: colors.success }]}>
                   {getDisplayAnswerLabels(question)}
                 </Text>
               </View>
-              <View style={styles.explanationSection}>
-                <Text style={styles.exLabel}>解析：</Text>
-                <Text style={styles.exContent}>{question.explanation}</Text>
-              </View>
-              <View style={styles.explanationBottom}>
-                <Text style={styles.explanationBottomText}>
-                  👆 点击屏幕任意位置进入下一题
-                </Text>
-              </View>
+            </View>
+
+            <View style={styles.explanationSection}>
+              <Text style={styles.exLabel}>解析</Text>
+              <Text style={styles.exContent}>{question.explanation}</Text>
             </View>
           </ScrollView>
         </TouchableWithoutFeedback>
@@ -126,18 +136,20 @@ export default function QuestionCard() {
   return (
     <View style={styles.container}>
       <TouchableWithoutFeedback onPress={handleCardTap} disabled={!isLocked}>
-        <ScrollView style={styles.cardScroll} contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.cardScroll}
+          contentContainerStyle={styles.cardContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.headerSection}>
             <Text style={styles.questionType}>{questionType}</Text>
-            {isLocked && (
-              <Text style={styles.lockedIndicator}>已锁定</Text>
-            )}
+            {isLocked && <Text style={styles.lockedIndicator}>已锁定</Text>}
           </View>
-          
+
           <View style={styles.questionSection}>
             <Text style={styles.contentText}>{question.content}</Text>
           </View>
-          
+
           <View style={styles.optionsSection}>
             {question.options.map((opt) => (
               <OptionButton
@@ -155,10 +167,10 @@ export default function QuestionCard() {
               />
             ))}
           </View>
-          
-          <View style={styles.actionBar}>
-            {showExplanationBtn && (
-              <TouchableOpacity 
+
+          {showExplanationBtn && (
+            <View style={styles.actionBar}>
+              <TouchableOpacity
                 style={styles.explainBtn}
                 onPress={(e) => {
                   e.stopPropagation();
@@ -167,8 +179,8 @@ export default function QuestionCard() {
               >
                 <Text style={styles.explainBtnText}>查看解析</Text>
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          )}
         </ScrollView>
       </TouchableWithoutFeedback>
     </View>
@@ -178,40 +190,44 @@ export default function QuestionCard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.paper,
   },
   cardScroll: {
     flex: 1,
   },
   cardContent: {
-    paddingHorizontal: small.lg,
-    paddingVertical: heightSmall.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     flexGrow: 1,
   },
   headerSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: heightSmall.sm,
+    marginBottom: spacing.sm,
   },
   questionType: {
-    fontSize: fontSmall.sm,
-    color: '#4A90D9',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.primary,
     fontWeight: '600',
+    letterSpacing: 1,
   },
   lockedIndicator: {
-    fontSize: fontSmall.xs,
-    color: '#FF9800',
-    marginLeft: small.md,
-    fontWeight: '500',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.accent,
+    marginLeft: spacing.md,
+    fontWeight: '600',
   },
   questionSection: {
     flexShrink: 1,
-    marginBottom: heightSmall.md,
+    marginBottom: spacing.md,
   },
   contentText: {
-    fontSize: fontSmall.md,
-    color: '#333333',
-    lineHeight: fontSizePercent((22 * 100) / 390),
+    fontFamily,
+    fontSize: fontSize.md,
+    color: colors.text,
+    lineHeight: 26,
   },
   optionsSection: {
     justifyContent: 'flex-start',
@@ -219,93 +235,110 @@ const styles = StyleSheet.create({
   actionBar: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingTop: heightSmall.md,
+    paddingTop: spacing.md,
   },
   explainBtn: {
-    paddingVertical: heightSmall.md,
-    paddingHorizontal: small.xl,
-    backgroundColor: '#2196F3',
-    borderRadius: small.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
     alignItems: 'center',
   },
   explainBtnText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.sm,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     fontWeight: '600',
+    letterSpacing: 1,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.paper,
   },
   emptyText: {
-    fontSize: fontSmall.md,
-    color: '#999999',
+    fontFamily,
+    fontSize: fontSize.md,
+    color: colors.textFaint,
   },
   explanationContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.paper,
   },
   explanationHeader: {
-    flexDirection: 'column',
-    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.primary,
     alignItems: 'center',
-    paddingVertical: heightSmall.md,
-    paddingHorizontal: small.lg,
-    backgroundColor: '#2196F3',
+    borderBottomLeftRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
   },
   explanationTitle: {
-    fontSize: fontSmall.md,
+    fontFamily,
+    fontSize: fontSize.lg,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: heightSmall.xs,
+    color: colors.white,
+    letterSpacing: 2,
   },
   explanationHint: {
-    fontSize: fontSmall.xs,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 2,
   },
   explanationScroll: {
     flex: 1,
   },
   explanationContent: {
-    padding: small.lg,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   explanationSection: {
-    marginBottom: heightSmall.lg,
-    padding: small.md,
-    backgroundColor: '#F8F9FA',
-    borderRadius: small.md,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   exLabel: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.accent,
     fontWeight: '600',
-    marginBottom: heightSmall.sm,
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
   },
   exContent: {
-    fontSize: fontSmall.sm,
-    color: '#333333',
-    lineHeight: fontSmall.xl,
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.text,
+    lineHeight: 24,
   },
   exAnswer: {
-    fontSize: fontSmall.sm,
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: 'bold',
+    lineHeight: 22,
   },
   exOptionText: {
-    fontSize: fontSmall.sm,
-    lineHeight: fontSmall.lg,
-    marginBottom: heightSmall.xs,
+    fontFamily,
+    fontSize: fontSize.sm,
+    lineHeight: 24,
+    marginBottom: 2,
   },
-  explanationBottom: {
-    marginTop: heightSmall.lg,
-    padding: small.md,
-    backgroundColor: '#E3F2FD',
-    borderRadius: small.md,
-    alignItems: 'center',
+  answerGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
-  explanationBottomText: {
-    fontSize: fontSmall.sm,
-    color: '#2196F3',
-    fontWeight: '600',
+  answerCell: {
+    flex: 1,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });

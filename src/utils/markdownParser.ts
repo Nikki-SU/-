@@ -539,8 +539,8 @@ function extractOptions(lines: string[]): { options: Option[]; labels: string[] 
     }
   }
 
-  const labels = Array.from(optionMap.keys()).sort();
-  const options = labels.map((label, idx) => ({
+  let labels = Array.from(optionMap.keys()).sort();
+  let options = labels.map((label, idx) => ({
     label,
     text: optionMap.get(label) || '',
     originalIndex: idx,

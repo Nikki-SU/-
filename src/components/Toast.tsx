@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
+import { View, Text, StyleSheet } from 'react-native';
 import { useAppStore } from '../stores/useAppStore';
+import { colors, fontFamily, fontSize, radius, spacing, shadow } from '../utils/theme';
 
 export default function Toast() {
   const toastMessage = useAppStore((state) => state.toastMessage);
@@ -9,7 +9,7 @@ export default function Toast() {
   if (!toastMessage) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="none">
       <View style={styles.toast}>
         <Text style={styles.toastText}>{toastMessage}</Text>
       </View>
@@ -27,15 +27,18 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   toast: {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: '6%',
-    paddingVertical: '3%',
-    borderRadius: small.xl,
+    backgroundColor: colors.primaryDeep,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
     maxWidth: '80%',
+    ...shadow.card,
   },
   toastText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.md,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     textAlign: 'center',
+    lineHeight: 20,
   },
 });

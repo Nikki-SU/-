@@ -1,20 +1,19 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView } from 'react-native';
-import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
+import { colors, fontFamily, fontSize, radius, spacing, shadow } from '../utils/theme';
 import { useAppStore } from '../stores/useAppStore';
 import type { AnswerStatus } from '../types';
 
 const COLOR_MAP: Record<AnswerStatus | 'default', string> = {
-  correct: '#4CAF50',
-  wrong: '#F44336',
-  partial: '#FF9800',
-  unanswered: '#CCCCCC',
-  locked: '#CCCCCC',
-  default: '#CCCCCC',
+  correct: colors.success,
+  wrong: colors.danger,
+  partial: colors.warning,
+  unanswered: colors.borderStrong,
+  locked: colors.borderStrong,
+  default: colors.borderStrong,
 };
 
 export default function ProgressBoard() {
-  const questions = useAppStore((state) => state.questions);
   const progressMap = useAppStore((state) => state.progressMap);
   const currentIndex = useAppStore((state) => state.currentIndex);
   const isExpanded = useAppStore((state) => state.isProgressBoardExpanded);
@@ -61,7 +60,7 @@ export default function ProgressBoard() {
   };
 
   const renderExpanded = () => {
-    const groups: { start: number; end: number; questions: typeof questions }[] = [];
+    const groups: { start: number; end: number; questions: typeof currentQuestions }[] = [];
     for (let i = 0; i < currentQuestions.length; i += 5) {
       groups.push({
         start: i,
@@ -80,17 +79,17 @@ export default function ProgressBoard() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>📋 全部题目进度</Text>
+              <Text style={styles.modalTitle}>题目进度</Text>
               <TouchableOpacity onPress={toggleProgressBoard}>
                 <Text style={styles.closeButton}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.groupsContainer}>
+            <ScrollView style={styles.groupsContainer} showsVerticalScrollIndicator={false}>
               {groups.map((group, gi) => (
                 <View key={gi} style={styles.groupContainer}>
                   <Text style={styles.groupTitle}>
-                    第{gi + 1}组 ({group.start + 1}-{group.end}题):
+                    第 {gi + 1} 组（{group.start + 1}-{group.end}）
                   </Text>
                   <View style={styles.groupDots}>
                     {group.questions.map((q, i) => {
@@ -151,66 +150,70 @@ export default function ProgressBoard() {
 
 const styles = StyleSheet.create({
   compactContainer: {
-    height: heightPercent((32 * 100) / 844),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: small.xs,
-    borderBottomColor: '#E0E0E0',
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.paper,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
   dot: {
-    width: small.lg,
-    height: heightSmall.lg,
-    borderRadius: small.md,
-    marginHorizontal: small.md,
-    borderWidth: small.xs,
-    borderColor: '#FFFFFF',
+    width: radius.sm,
+    height: radius.sm,
+    borderRadius: radius.pill,
+    marginHorizontal: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.paper,
   },
   dotActive: {
-    borderWidth: small.sm,
-    borderColor: '#4A90D9',
-    transform: [{ scale: 1.2 }],
+    borderWidth: 2,
+    borderColor: colors.primary,
+    transform: [{ scale: 1.25 }],
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(32, 54, 78, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    width: '85%',
+    width: '86%',
+    maxWidth: 420,
     maxHeight: '80%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: small.lg,
-    padding: small.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    ...shadow.card,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: heightSmall.lg,
+    marginBottom: spacing.lg,
   },
   modalTitle: {
-    fontSize: fontSmall.md,
+    fontFamily,
+    fontSize: fontSize.lg,
     fontWeight: 'bold',
-    color: '#333333',
+    color: colors.primaryDeep,
   },
   closeButton: {
-    fontSize: fontSmall.lg,
-    color: '#999999',
-    padding: small.md,
+    fontSize: fontSize.lg,
+    color: colors.textFaint,
+    padding: spacing.xs,
   },
   groupsContainer: {
-    maxHeight: heightPercent((280 * 100) / 844),
+    maxHeight: 340,
   },
   groupContainer: {
-    marginBottom: heightSmall.lg,
+    marginBottom: spacing.lg,
   },
   groupTitle: {
-    fontSize: fontSmall.xs,
-    color: '#666666',
-    marginBottom: heightSmall.md,
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
     fontWeight: '600',
   },
   groupDots: {
@@ -218,44 +221,46 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   expandedDot: {
-    width: widthPercent((28 * 100) / 390),
-    height: heightPercent((28 * 100) / 844),
-    borderRadius: small.lg,
-    marginHorizontal: small.sm,
-    marginVertical: heightSmall.sm,
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    marginHorizontal: 3,
+    marginVertical: 3,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: small.xs,
-    borderColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: colors.surface,
   },
   dotLabel: {
-    fontSize: fontSmall.xs,
-    color: '#FFFFFF',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.white,
     fontWeight: 'bold',
   },
   legendContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-around',
-    marginTop: heightSmall.lg,
-    paddingTop: heightSmall.lg,
-    borderTopWidth: small.xs,
-    borderTopColor: '#E0E0E0',
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: small.md,
-    marginVertical: heightSmall.sm,
+    marginHorizontal: spacing.sm,
+    marginVertical: spacing.xs,
   },
   legendDot: {
-    width: small.lg,
-    height: heightSmall.lg,
-    borderRadius: small.md,
-    marginRight: small.sm,
+    width: 12,
+    height: 12,
+    borderRadius: radius.pill,
+    marginRight: spacing.sm,
   },
   legendText: {
-    fontSize: fontSmall.xs,
-    color: '#666666',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
   },
 });

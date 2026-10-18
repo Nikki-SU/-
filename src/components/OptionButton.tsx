@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
-import { getOptionColorBasedOnContent, getDisplayAnswerLabels } from '../utils/shuffleUtils';
+import { getOptionColorBasedOnContent } from '../utils/shuffleUtils';
 import { useAppStore } from '../stores/useAppStore';
+import { colors, fontFamily, fontSize, radius, spacing } from '../utils/theme';
 import type { AnswerStatus, ColorType, Question } from '../types';
 
-const COLOR_MAP: Record<ColorType, { bg: string; border: string; text: string }> = {
-  gray: { bg: '#F5F5F5', border: '#E0E0E0', text: '#666666' },
-  blue: { bg: '#E3F2FD', border: '#4A90D9', text: '#4A90D9' },
-  green: { bg: '#E8F5E9', border: '#4CAF50', text: '#4CAF50' },
-  red: { bg: '#FFEBEE', border: '#F44336', text: '#F44336' },
-  yellow: { bg: '#FFF8E1', border: '#FF9800', text: '#FF9800' },
+const COLOR_MAP: Record<ColorType, { bg: string; border: string; text: string; badge: string }> = {
+  gray: { bg: colors.surface, border: colors.border, text: colors.text, badge: colors.neutral },
+  blue: { bg: colors.primarySoft, border: colors.primary, text: colors.primaryDeep, badge: colors.primary },
+  green: { bg: colors.successSoft, border: colors.success, text: colors.success, badge: colors.success },
+  red: { bg: colors.dangerSoft, border: colors.danger, text: colors.danger, badge: colors.danger },
+  yellow: { bg: colors.warningSoft, border: colors.warning, text: colors.warning, badge: colors.warning },
 };
 
 interface OptionButtonProps {
@@ -40,14 +40,14 @@ export default function OptionButton({
 }: OptionButtonProps) {
   const selectOption = useAppStore((state) => state.selectOption);
 
-  const color = getOptionColorBasedOnContent(
+  const colorType = getOptionColorBasedOnContent(
     question!,
     label,
     selectedContents,
     correctAnswerContent,
     status
   );
-  const colors = COLOR_MAP[color];
+  const palette = COLOR_MAP[colorType];
   const isDisabled = locked || status !== 'unanswered';
 
   const handlePress = () => {
@@ -61,8 +61,8 @@ export default function OptionButton({
       style={[
         styles.container,
         {
-          backgroundColor: colors.bg,
-          borderColor: colors.border,
+          backgroundColor: palette.bg,
+          borderColor: palette.border,
         },
         isDisabled && styles.disabledContainer,
       ]}
@@ -70,24 +70,12 @@ export default function OptionButton({
       activeOpacity={isDisabled ? 1 : 0.7}
       disabled={isDisabled}
     >
-      <View
-        style={[
-          styles.labelCircle,
-          {
-            backgroundColor: colors.border,
-          },
-        ]}
-      >
+      <View style={[styles.labelCircle, { backgroundColor: palette.badge }]}>
         <Text style={styles.labelText}>{label}</Text>
       </View>
       <View style={styles.textContainer}>
-        <Text style={[styles.optionText, { color: colors.text }]}>
-          {text}
-        </Text>
+        <Text style={[styles.optionText, { color: palette.text }]}>{text}</Text>
       </View>
-      {isDisabled && (
-        <Text style={styles.lockIcon}>🔒</Text>
-      )}
     </TouchableOpacity>
   );
 }
@@ -96,38 +84,36 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: heightSmall.md,
-    paddingHorizontal: small.md,
-    marginVertical: heightSmall.sm,
-    borderRadius: small.md,
-    borderWidth: small.xs,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginVertical: spacing.xs,
+    borderRadius: radius.md,
+    borderWidth: 1,
   },
   disabledContainer: {
-    opacity: 0.95,
+    opacity: 0.96,
   },
   labelCircle: {
-    width: widthPercent((26 * 100) / 390),
-    height: heightPercent((26 * 100) / 844),
-    borderRadius: small.lg,
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: small.md,
+    marginRight: spacing.md,
     flexShrink: 0,
   },
   labelText: {
-    fontSize: fontSmall.sm,
+    fontFamily,
+    fontSize: fontSize.sm,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   textContainer: {
     flex: 1,
   },
   optionText: {
-    fontSize: fontSmall.sm,
-    lineHeight: fontSmall.lg,
-  },
-  lockIcon: {
-    fontSize: fontSmall.xs,
-    marginLeft: small.md,
+    fontFamily,
+    fontSize: fontSize.md,
+    lineHeight: 24,
   },
 });

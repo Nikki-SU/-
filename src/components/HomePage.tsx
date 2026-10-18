@@ -5,7 +5,7 @@ import { isFileSystemAccessSupported, clearDirHandle, readUploadedFile, download
 import { buildPrompt, AI_GENERATOR_PROMPT } from '../utils/promptTemplate';
 import { generateCSVTemplates } from '../utils/csvImport';
 import type { Bank } from '../types';
-import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
+import { colors, fontFamily, fontSize, radius, spacing, shadow, MAX_CONTENT_WIDTH } from '../utils/theme';
 
 export default function HomePage() {
   const [showImport, setShowImport] = useState(false);
@@ -239,122 +239,123 @@ export default function HomePage() {
         </View>
 
         {showFormatHelp && (
-          <View style={styles.helpBox}>
-            <Text style={styles.helpTitle}>📋 CSV 格式要求（推荐）</Text>
-            <Text style={styles.helpText}>• 使用 Tab 分隔各列</Text>
-            <Text style={styles.helpText}>• 列顺序：题号 | 题干 | 选项A | 选项B | 选项C | 选项D | 选项E | 选项F | 正确答案内容 | 解析</Text>
-            <Text style={styles.helpText}>• 多选题答案用换行分隔每个正确选项</Text>
-            <Text style={styles.helpText}>• 解析内容支持换行</Text>
-            <Text style={styles.helpText}>• 空列请留空（如选项E、F不需要时留空）</Text>
+          <View style={styles.helpWrapper}>
+            <View style={styles.helpBox}>
+              <Text style={styles.helpTitle}>CSV 题库格式（Tab 分隔）</Text>
+              <Text style={styles.helpText}>• 用制表符 Tab 分隔 10 列，首行表头可省略</Text>
+              <Text style={styles.helpText}>• 列顺序：题号｜题干｜选项A~F｜正确答案内容｜解析</Text>
+              <Text style={styles.helpText}>• 正确答案填「选项内容」原文；多选时用换行分隔每个正确项</Text>
+              <Text style={styles.helpText}>• 选项不足 6 个时，多余列留空即可</Text>
 
-            <TouchableOpacity
-              style={styles.sampleButton}
-              onPress={() => {
-                downloadFile('CSV导入模板.tsv', generateCSVTemplates(), 'text/tab-separated-values');
-                showToast('已下载 CSV 模板');
-              }}
-            >
-              <Text style={styles.sampleButtonText}>📥 下载 CSV 模板</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sampleButton2}
+                onPress={() => {
+                  downloadFile('CSV导入模板.tsv', generateCSVTemplates(), 'text/tab-separated-values');
+                  showToast('已下载 CSV 模板');
+                }}
+              >
+                <Text style={styles.sampleButtonText}>下载 CSV 模板</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.promptGenButton}
-              onPress={() => setShowPromptGenerator(!showPromptGenerator)}
-            >
-              <Text style={styles.promptGenButtonText}>
-                {showPromptGenerator ? '▲ 收起 AI Prompt' : '✨ 使用 AI 生成（一键复制 Prompt）'}
-              </Text>
-            </TouchableOpacity>
-
-            {showPromptGenerator && (
-              <View style={styles.promptGenerator}>
-                <Text style={styles.promptGenSubtitle}>自定义 Prompt 参数</Text>
-
-                <View style={styles.promptInputRow}>
-                  <Text style={styles.promptInputLabel}>主题/知识点：</Text>
-                  <TextInput
-                    style={styles.promptInput}
-                    placeholder="如：有机化学、React基础"
-                    value={promptTopic}
-                    onChangeText={setPromptTopic}
-                  />
-                </View>
-
-                <View style={styles.promptInputRowInline}>
-                  <View style={styles.promptInputInlineItem}>
-                    <Text style={styles.promptInputLabel}>总题数：</Text>
-                    <TextInput
-                      style={styles.promptSmallInput}
-                      value={promptTotal}
-                      onChangeText={setPromptTotal}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                  <View style={styles.promptInputInlineItem}>
-                    <Text style={styles.promptInputLabel}>多选题数：</Text>
-                    <TextInput
-                      style={styles.promptSmallInput}
-                      value={promptMulti}
-                      onChangeText={setPromptMulti}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.promptPreviewBox}>
-                  <Text style={styles.promptPreviewText} selectable>
-                    {generatedPrompt}
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.copyButton}
-                  onPress={() => copyToClipboard(generatedPrompt)}
-                >
-                  <Text style={styles.copyButtonText}>
-                    {copiedPrompt ? '✓ 已复制！' : '📋 一键复制 Prompt'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.copyButton, styles.exportMdButton]}
-                  onPress={() => {
-                    downloadFile(`AI题库生成Prompt_${Date.now()}.md`, generatedPrompt, 'text/markdown');
-                    showToast('已导出为 .md 文件');
-                  }}
-                >
-                  <Text style={styles.copyButtonText}>📥 导出为 .md 文件</Text>
-                </TouchableOpacity>
-
-                <Text style={styles.promptHint}>
-                  复制后粘贴到 AI 对话中，将生成可直接导入的题库
+              <TouchableOpacity
+                style={styles.promptGenButton}
+                onPress={() => setShowPromptGenerator(!showPromptGenerator)}
+              >
+                <Text style={styles.promptGenButtonText}>
+                  {showPromptGenerator ? '收起 AI Prompt ▲' : '用 AI 生成题库 ✨'}
                 </Text>
-              </View>
-            )}
+              </TouchableOpacity>
+
+              {showPromptGenerator && (
+                <View style={styles.promptGenerator}>
+                  <Text style={styles.promptGenSubtitle}>自定义 Prompt 参数</Text>
+
+                  <View style={styles.promptInputRow}>
+                    <Text style={styles.promptInputLabel}>主题 / 知识点</Text>
+                    <TextInput
+                      style={styles.promptInput}
+                      placeholder="如：有机化学、React 基础"
+                      value={promptTopic}
+                      onChangeText={setPromptTopic}
+                    />
+                  </View>
+
+                  <View style={styles.promptInputRowInline}>
+                    <View style={styles.promptInputInlineItem}>
+                      <Text style={styles.promptInputLabel}>总题数</Text>
+                      <TextInput
+                        style={styles.promptSmallInput}
+                        value={promptTotal}
+                        onChangeText={setPromptTotal}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={styles.promptInputInlineItem}>
+                      <Text style={styles.promptInputLabel}>多选题数</Text>
+                      <TextInput
+                        style={styles.promptSmallInput}
+                        value={promptMulti}
+                        onChangeText={setPromptMulti}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.promptPreviewBox}>
+                    <Text style={styles.promptPreviewText} selectable>
+                      {generatedPrompt}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.copyButton}
+                    onPress={() => copyToClipboard(generatedPrompt)}
+                  >
+                    <Text style={styles.copyButtonText}>
+                      {copiedPrompt ? '已复制 ✓' : '一键复制 Prompt'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.copyButton, styles.exportMdButton]}
+                    onPress={() => {
+                      downloadFile(`AI题库生成Prompt_${Date.now()}.md`, generatedPrompt, 'text/markdown');
+                      showToast('已导出为 .md 文件');
+                    }}
+                  >
+                    <Text style={styles.copyButtonText}>导出为 .md 文件</Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.promptHint}>
+                    生成的是 Markdown 题库，返回后请选择「Markdown 文本」导入
+                  </Text>
+                </View>
+              )}
+            </View>
 
             <View style={styles.markdownHelpBox}>
-              <Text style={styles.helpTitle}>📝 Markdown 格式（备选）</Text>
-              <Text style={styles.helpText}>• 支持 --- 分隔符 或 ## 标题 或 编号 格式</Text>
-              <Text style={styles.helpText}>• 选项格式：A. 选项内容（依次 A→B→C→D）</Text>
-              <Text style={styles.helpText}>• 答案格式：答案：A（单选）或 答案：ABCD（多选）</Text>
-              <Text style={styles.helpText}>• 解析格式：**解析：** 内容（可选）</Text>
+              <Text style={styles.helpTitle}>Markdown 题库格式</Text>
+              <Text style={styles.helpText}>• 标题：## 第N题；相邻题目之间用单独一行 --- 分隔</Text>
+              <Text style={styles.helpText}>• 选项每行一个：A. 内容（A→B→C 连续，不要跳号，至少 2 个）</Text>
+              <Text style={styles.helpText}>• 答案行：答案：B（单选）或 答案：ABD（多选，字母按序连写）</Text>
+              <Text style={styles.helpText}>• 解析行：解析：内容（可省略）</Text>
             </View>
           </View>
         )}
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: heightPercent((20 * 100) / 844) }}>
+        <ScrollView style={styles.flexFill} contentContainerStyle={styles.importScrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.modeSelector}>
             <TouchableOpacity
               style={[styles.modeButton, importMode === 'csv' && styles.modeButtonActive]}
               onPress={() => setImportMode('csv')}
             >
-              <Text style={[styles.modeButtonText, importMode === 'csv' && styles.modeButtonTextActive]}>CSV 导入（推荐）</Text>
+              <Text style={[styles.modeButtonText, importMode === 'csv' && styles.modeButtonTextActive]}>表格 CSV</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modeButton, importMode === 'markdown' && styles.modeButtonActive]}
               onPress={() => setImportMode('markdown')}
             >
-              <Text style={[styles.modeButtonText, importMode === 'markdown' && styles.modeButtonTextActive]}>Markdown 导入</Text>
+              <Text style={[styles.modeButtonText, importMode === 'markdown' && styles.modeButtonTextActive]}>Markdown 文本</Text>
             </TouchableOpacity>
           </View>
 
@@ -370,8 +371,8 @@ export default function HomePage() {
             >
               {isImporting ? (
                 <>
-                  <ActivityIndicator size="large" color="#4A90D9" />
-                  <Text style={styles.dropText}>正在解析文件...</Text>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={styles.dropText}>正在解析文件…</Text>
                 </>
               ) : (
                 <>
@@ -384,9 +385,9 @@ export default function HomePage() {
                     style={styles.browseButton}
                     onPress={() => fileInputRef.current?.click()}
                   >
-                    <Text style={styles.browseButtonText}>📁 选择文件</Text>
+                    <Text style={styles.browseButtonText}>选择文件</Text>
                   </TouchableOpacity>
-                  <Text style={styles.dropHint}>文件名将自动作为题库名称</Text>
+                  <Text style={styles.dropHint}>文件名即题库名</Text>
                 </>
               )}
 
@@ -439,15 +440,15 @@ export default function HomePage() {
             <Text style={styles.backButton}>← 返回</Text>
           </TouchableOpacity>
           <Text style={styles.editorTitle}>题库管理</Text>
-          <View style={{ width: widthPercent((50 * 100) / 390) }} />
+          <View style={styles.headerSpacer} />
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: heightPercent((20 * 100) / 844) }}>
+        <ScrollView style={styles.flexFill} contentContainerStyle={styles.bankScrollContent} showsVerticalScrollIndicator={false}>
           {banks.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>📚</Text>
               <Text style={styles.emptyText}>还没有题库</Text>
-              <Text style={styles.emptyDesc}>点击下方按钮导入或创建新题库</Text>
+              <Text style={styles.emptyDesc}>点击下方按钮导入题库</Text>
             </View>
           ) : (
             banks.map((bank) => {
@@ -493,10 +494,10 @@ export default function HomePage() {
                       </TouchableOpacity>
                       <View style={styles.bankActions}>
                         <TouchableOpacity onPress={() => startRename(bank)}>
-                          <Text style={styles.bankActionText}>✏️ 重命名</Text>
+                          <Text style={styles.bankActionText}>重命名</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleDeleteBank(bank)}>
-                          <Text style={[styles.bankActionText, styles.deleteText]}>🗑️ 删除</Text>
+                          <Text style={[styles.bankActionText, styles.deleteText]}>删除</Text>
                         </TouchableOpacity>
                       </View>
                     </>
@@ -507,13 +508,14 @@ export default function HomePage() {
           )}
         </ScrollView>
 
-        <TouchableOpacity
-          style={[styles.menuButton, styles.primaryButton]}
-          onPress={() => { setShowBankManager(false); setShowImport(true); }}
-        >
-          <Text style={styles.menuIcon}>📥</Text>
-          <Text style={styles.menuButtonText}>导入新题库</Text>
-        </TouchableOpacity>
+        <View style={styles.footerBar}>
+          <TouchableOpacity
+            style={[styles.footerButton, styles.primaryButton]}
+            onPress={() => { setShowBankManager(false); setShowImport(true); }}
+          >
+            <Text style={styles.footerButtonText}>导入题库</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -522,433 +524,436 @@ export default function HomePage() {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-      {currentBank && currentStats ? (
-        <View style={styles.currentBankSection}>
-          <Text style={styles.currentBankLabel}>当前题库</Text>
-          <TouchableOpacity style={styles.currentBankCard} onPress={() => handleSelectBank(currentBank.id)}>
-            <Text style={styles.currentBankName}>{currentBank.name}</Text>
-            <Text style={styles.currentBankStats}>
-              {currentStats.answered}/{currentStats.total} 题已答
-              {wrongBankIds.length > 0 ? ` · ${wrongBankIds.length} 错题` : ''}
-            </Text>
-            <View style={styles.progressBarLarge}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${currentStats.total > 0 ? (currentStats.answered / currentStats.total) * 100 : 0}%` },
-                ]}
-              />
-            </View>
-          </TouchableOpacity>
-          <View style={styles.currentBankActions}>
-            <TouchableOpacity
-              style={styles.resumeButton}
-              onPress={() => setShowHome(false)}
-            >
-              <Text style={styles.resumeButtonText}>继续刷题 →</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.manageButton}
-              onPress={() => setShowBankManager(true)}
-            >
-              <Text style={styles.manageButtonText}>管理题库</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.manageButton, { borderColor: '#F44336' }]}
-              onPress={() => {
-                const isWeb = typeof window !== 'undefined';
-                if (isWeb) {
-                  if (window.confirm('确定要清空所有进度并重新开始吗？选项将被打乱。')) {
-                    resetAll();
-                  }
-                } else {
-                  Alert.alert(
-                    '清空进度',
-                    '确定要清空所有进度并重新开始吗？选项将被打乱。',
-                    [
-                      { text: '取消', style: 'cancel' },
-                      { text: '确认', style: 'destructive', onPress: () => resetAll() },
-                    ]
-                  );
-                }
-              }}
-            >
-              <Text style={[styles.manageButtonText, { color: '#F44336' }]}>清空进度</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.hero}>
+          <Text style={styles.heroTitle}>题库刷题</Text>
+          <Text style={styles.heroSubtitle}>AcademicFlow</Text>
         </View>
-      ) : null}
 
-      {banks.length > 1 && (
-        <TouchableOpacity
-          style={styles.bankListButton}
-          onPress={() => setShowBankManager(true)}
-        >
-          <Text style={styles.bankListText}>📁 切换题库（共 {banks.length} 个）</Text>
-        </TouchableOpacity>
-      )}
-
-      <View style={styles.favoritesSection}>
-        <Text style={styles.favoritesLabel}>收藏夹</Text>
-        <TouchableOpacity 
-          style={[styles.favoritesCard, totalFavCount === 0 && styles.emptyCard]}
-          onPress={() => { 
-            if (totalFavCount === 0) {
-              showToast('还没有收藏的题目');
-              return;
-            }
-            setShowFavDetail(!showFavDetail);
-          }}
-        >
-          <View style={styles.favoritesInfo}>
-            <Text style={styles.favoritesIcon}>⭐</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.favoritesCount}>
-                {totalFavCount > 0 ? `${totalFavCount} 道收藏题目` : '暂无收藏题目'}
+        {currentBank && currentStats ? (
+          <View style={styles.currentBankSection}>
+            <Text style={styles.sectionLabel}>当前题库</Text>
+            <TouchableOpacity style={styles.currentBankCard} onPress={() => handleSelectBank(currentBank.id)}>
+              <Text style={styles.currentBankName}>{currentBank.name}</Text>
+              <Text style={styles.currentBankStats}>
+                {currentStats.answered}/{currentStats.total} 题已答
+                {wrongBankIds.length > 0 ? ` · ${wrongBankIds.length} 错题` : ''}
               </Text>
-              <Text style={styles.favoritesDesc}>
-                {totalFavCount > 0 ? '点击查看分类详情' : '答题时点击 ★ 收藏题目'}
-              </Text>
-            </View>
-            {totalFavCount > 0 && (
-              <Text style={styles.arrowText}>{showFavDetail ? '▲' : '▼'}</Text>
-            )}
-          </View>
-
-          {showFavDetail && totalFavCount > 0 && (
-            <View style={styles.detailSection}>
-              {getFavoriteBranches().map((branch) => (
-                <View key={branch.bankId} style={styles.detailRow}>
-                  <View style={styles.detailRowInfo}>
-                    <Text style={styles.detailRowName}>{branch.bankName}</Text>
-                    <Text style={styles.detailRowCount}>{branch.questionIds.length} 题</Text>
-                  </View>
-                  <View style={styles.detailRowActions}>
-                    <TouchableOpacity
-                      style={[styles.detailActionBtn, styles.detailActionPrimary]}
-                      onPress={() => enterFavoriteBranch(branch.bankId)}
-                    >
-                      <Text style={styles.detailActionTextPrimary}>刷题</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.detailActionBtn, styles.detailActionClear]}
-                      onPress={() => {
-                        const isWeb = typeof window !== 'undefined';
-                        if (isWeb) {
-                          if (window.confirm(`确定要清空「${branch.bankName}」的 ${branch.questionIds.length} 个收藏吗？`)) {
-                            clearFavoriteBranchProgress(branch.bankId);
-                          }
-                        } else {
-                          Alert.alert(
-                            '清空收藏',
-                            `确定要清空「${branch.bankName}」的 ${branch.questionIds.length} 个收藏吗？`,
-                            [
-                              { text: '取消', style: 'cancel' },
-                              { text: '确认', style: 'destructive', onPress: () => clearFavoriteBranchProgress(branch.bankId) },
-                            ]
-                          );
-                        }
-                      }}
-                    >
-                      <Text style={styles.detailActionTextClear}>清空</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.detailActionBtn, styles.detailActionExport]}
-                      onPress={() => exportFavoriteBranch(branch.bankId)}
-                    >
-                      <Text style={styles.detailActionTextExport}>导出</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-              <View style={styles.detailFooter}>
-                <TouchableOpacity
-                  style={styles.exportAllBtn}
-                  onPress={() => exportFavoriteAll()}
-                >
-                  <Text style={styles.exportAllBtnText}>📥 全部导出 ({totalFavCount}题)</Text>
-                </TouchableOpacity>
+              <View style={styles.progressBarLarge}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${currentStats.total > 0 ? (currentStats.answered / currentStats.total) * 100 : 0}%` },
+                  ]}
+                />
               </View>
-            </View>
-          )}
-
-          {!showFavDetail && totalFavCount > 0 && (
-            <View style={styles.favoritesActions}>
+            </TouchableOpacity>
+            <View style={styles.currentBankActions}>
               <TouchableOpacity
-                style={styles.clearFavBtn}
+                style={styles.resumeButton}
+                onPress={() => setShowHome(false)}
+              >
+                <Text style={styles.resumeButtonText}>继续刷题 →</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.manageButton}
+                onPress={() => setShowBankManager(true)}
+              >
+                <Text style={styles.manageButtonText}>管理题库</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.manageButton, styles.dangerManageButton]}
                 onPress={() => {
                   const isWeb = typeof window !== 'undefined';
                   if (isWeb) {
-                    if (window.confirm(`确定要清空所有 ${totalFavCount} 个收藏的进度吗？`)) {
-                      banks.forEach(bank => {
-                        if (bank.favoritesIds.length > 0) {
-                          clearFavoriteBranchProgress(bank.id);
-                        }
-                      });
+                    if (window.confirm('确定要清空所有进度并重新开始吗？选项将被打乱。')) {
+                      resetAll();
                     }
                   } else {
                     Alert.alert(
-                      '清空收藏进度',
-                      `确定要清空所有 ${totalFavCount} 个收藏的进度吗？`,
+                      '清空进度',
+                      '确定要清空所有进度并重新开始吗？选项将被打乱。',
                       [
                         { text: '取消', style: 'cancel' },
-                        { text: '确认', style: 'destructive', onPress: () => {
-                          banks.forEach(bank => {
-                            if (bank.favoritesIds.length > 0) {
-                              clearFavoriteBranchProgress(bank.id);
-                            }
-                          });
-                        } },
+                        { text: '确认', style: 'destructive', onPress: () => resetAll() },
                       ]
                     );
                   }
                 }}
               >
-                <Text style={styles.clearFavText}>清空所有进度</Text>
+                <Text style={styles.dangerManageText}>清空进度</Text>
               </TouchableOpacity>
             </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.favoritesSection}>
-        <Text style={styles.favoritesLabel}>错题库</Text>
-        <TouchableOpacity 
-          style={[styles.favoritesCard, totalWrongCount === 0 && styles.emptyCard, { borderColor: '#F44336' }]}
-          onPress={() => { 
-            if (totalWrongCount === 0) {
-              showToast('🎉 错题库已清空！');
-              return;
-            }
-            setShowWrongDetail(!showWrongDetail);
-          }}
-        >
-          <View style={styles.favoritesInfo}>
-            <Text style={styles.favoritesIcon}>❌</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.favoritesCount}>
-                {totalWrongCount > 0 ? `${totalWrongCount} 道错题` : '暂无错题'}
-              </Text>
-              <Text style={styles.favoritesDesc}>
-                {totalWrongCount > 0 ? '点击查看分类详情' : '答错的题目将自动加入错题库'}
-              </Text>
-            </View>
-            {totalWrongCount > 0 && (
-              <Text style={styles.arrowText}>{showWrongDetail ? '▲' : '▼'}</Text>
-            )}
           </View>
+        ) : null}
 
-          {showWrongDetail && totalWrongCount > 0 && (
-            <View style={styles.detailSection}>
-              {getWrongBankBranches().map((branch) => (
-                <View key={branch.bankId} style={styles.detailRow}>
-                  <View style={styles.detailRowInfo}>
-                    <Text style={styles.detailRowName}>{branch.bankName}</Text>
-                    <Text style={styles.detailRowCount}>{branch.questionIds.length} 题</Text>
-                  </View>
-                  <View style={styles.detailRowActions}>
-                    <TouchableOpacity
-                      style={[styles.detailActionBtn, styles.detailActionPrimary]}
-                      onPress={() => enterWrongBankBranch(branch.bankId)}
-                    >
-                      <Text style={styles.detailActionTextPrimary}>刷题</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.detailActionBtn, styles.detailActionClear]}
-                      onPress={() => {
-                        const isWeb = typeof window !== 'undefined';
-                        if (isWeb) {
-                          if (window.confirm(`确定要清空「${branch.bankName}」的 ${branch.questionIds.length} 个错题吗？`)) {
-                            clearWrongBranchProgress(branch.bankId);
-                          }
-                        } else {
-                          Alert.alert(
-                            '清空错题',
-                            `确定要清空「${branch.bankName}」的 ${branch.questionIds.length} 个错题吗？`,
-                            [
-                              { text: '取消', style: 'cancel' },
-                              { text: '确认', style: 'destructive', onPress: () => clearWrongBranchProgress(branch.bankId) },
-                            ]
-                          );
-                        }
-                      }}
-                    >
-                      <Text style={styles.detailActionTextClear}>清空</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.detailActionBtn, styles.detailActionExport]}
-                      onPress={() => exportWrongBranch(branch.bankId)}
-                    >
-                      <Text style={styles.detailActionTextExport}>导出</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-              <View style={styles.detailFooter}>
-                <TouchableOpacity
-                  style={[styles.exportAllBtn, styles.exportAllBtnWrong]}
-                  onPress={() => exportWrongAll()}
-                >
-                  <Text style={styles.exportAllBtnText}>📥 全部导出 ({totalWrongCount}题)</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.menuSection}>
-        <TouchableOpacity
-          style={[styles.menuButton, styles.primaryButton]}
-          onPress={() => setShowImport(true)}
-        >
-          <Text style={styles.menuIcon}>📥</Text>
-          <Text style={styles.menuButtonText}>导入题库</Text>
-          <Text style={styles.menuButtonDesc}>拖拽或选择 .md 文件，文件名即为题库名</Text>
-        </TouchableOpacity>
-
-        {banks.length > 0 && (
+        {banks.length > 1 && (
           <TouchableOpacity
-            style={[styles.menuButton, styles.tertiaryButton]}
+            style={styles.bankListButton}
             onPress={() => setShowBankManager(true)}
           >
-            <Text style={styles.menuIcon}>📂</Text>
-            <Text style={styles.tertiaryButtonText}>管理题库</Text>
-            <Text style={styles.menuButtonDesc}>切换、重命名或删除题库</Text>
+            <Text style={styles.bankListText}>切换题库 · 共 {banks.length} 个</Text>
           </TouchableOpacity>
         )}
-      </View>
 
-      <View style={styles.dataSection}>
-        <TouchableOpacity
-          style={styles.dataHeader}
-          onPress={() => setShowDataSettings(!showDataSettings)}
-        >
-          <Text style={styles.dataHeaderText}>⚙️ 数据设置</Text>
-          <Text style={styles.dataHeaderArrow}>{showDataSettings ? '▲' : '▼'}</Text>
-        </TouchableOpacity>
-
-        {showDataSettings && (
-          <View style={styles.dataContent}>
-            <View style={styles.dataPathRow}>
-              <Text style={styles.dataPathLabel}>当前存储路径：</Text>
-              <Text style={styles.dataPathValue} numberOfLines={1}>
-                {dataPath || '未设置（使用默认路径）'}
-              </Text>
+        <View style={styles.favoritesSection}>
+          <Text style={styles.sectionLabel}>收藏夹</Text>
+          <TouchableOpacity
+            style={[styles.favoritesCard, totalFavCount === 0 && styles.emptyCard]}
+            onPress={() => {
+              if (totalFavCount === 0) {
+                showToast('还没有收藏的题目');
+                return;
+              }
+              setShowFavDetail(!showFavDetail);
+            }}
+          >
+            <View style={styles.favoritesInfo}>
+              <Text style={styles.favoritesIcon}>⭐</Text>
+              <View style={styles.flex1}>
+                <Text style={styles.favoritesCount}>
+                  {totalFavCount > 0 ? `${totalFavCount} 道收藏题目` : '暂无收藏题目'}
+                </Text>
+                <Text style={styles.favoritesDesc}>
+                  {totalFavCount > 0 ? '点击查看分类详情' : '答题时点击 ★ 收藏'}
+                </Text>
+              </View>
+              {totalFavCount > 0 && (
+                <Text style={styles.arrowText}>{showFavDetail ? '▲' : '▼'}</Text>
+              )}
             </View>
 
-            {isFileSystemAccessSupported() ? (
-              <TouchableOpacity
-                style={styles.dataActionButton}
-                onPress={async () => {
-                  await selectDataDirectory();
-                }}
-              >
-                <Text style={styles.dataActionIcon}>📁</Text>
-                <Text style={styles.dataActionText}>选择本地文件夹</Text>
-              </TouchableOpacity>
-            ) : null}
+            {showFavDetail && totalFavCount > 0 && (
+              <View style={styles.detailSection}>
+                {getFavoriteBranches().map((branch) => (
+                  <View key={branch.bankId} style={styles.detailRow}>
+                    <View style={styles.detailRowInfo}>
+                      <Text style={styles.detailRowName}>{branch.bankName}</Text>
+                      <Text style={styles.detailRowCount}>{branch.questionIds.length} 题</Text>
+                    </View>
+                    <View style={styles.detailRowActions}>
+                      <TouchableOpacity
+                        style={[styles.detailActionBtn, styles.detailActionPrimary]}
+                        onPress={() => enterFavoriteBranch(branch.bankId)}
+                      >
+                        <Text style={styles.detailActionTextPrimary}>刷题</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.detailActionBtn, styles.detailActionClear]}
+                        onPress={() => {
+                          const isWeb = typeof window !== 'undefined';
+                          if (isWeb) {
+                            if (window.confirm(`确定要清空「${branch.bankName}」的 ${branch.questionIds.length} 个收藏吗？`)) {
+                              clearFavoriteBranchProgress(branch.bankId);
+                            }
+                          } else {
+                            Alert.alert(
+                              '清空收藏',
+                              `确定要清空「${branch.bankName}」的 ${branch.questionIds.length} 个收藏吗？`,
+                              [
+                                { text: '取消', style: 'cancel' },
+                                { text: '确认', style: 'destructive', onPress: () => clearFavoriteBranchProgress(branch.bankId) },
+                              ]
+                            );
+                          }
+                        }}
+                      >
+                        <Text style={styles.detailActionTextClear}>清空</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.detailActionBtn, styles.detailActionExport]}
+                        onPress={() => exportFavoriteBranch(branch.bankId)}
+                      >
+                        <Text style={styles.detailActionTextExport}>导出</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+                <View style={styles.detailFooter}>
+                  <TouchableOpacity
+                    style={styles.exportAllBtn}
+                    onPress={() => exportFavoriteAll()}
+                  >
+                    <Text style={styles.exportAllBtnText}>全部导出 ({totalFavCount}题)</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
-            <View style={styles.dataInputRow}>
-              <Text style={styles.dataInputLabel}>
-                {isFileSystemAccessSupported() ? '原生App可手动输入路径：' : '手动输入路径：'}
-              </Text>
-              <View style={styles.dataInputRowInner}>
-                <TextInput
-                  style={styles.dataInput}
-                  placeholder="/path/to/your/data"
-                  value={customPath}
-                  onChangeText={setCustomPath}
-                />
+            {!showFavDetail && totalFavCount > 0 && (
+              <View style={styles.favoritesActions}>
                 <TouchableOpacity
-                  style={styles.dataSubmitBtn}
-                  onPress={async () => {
-                    if (customPath.trim()) {
-                      await setCustomDataPath(customPath.trim());
-                      setCustomPath('');
+                  style={styles.clearFavBtn}
+                  onPress={() => {
+                    const isWeb = typeof window !== 'undefined';
+                    if (isWeb) {
+                      if (window.confirm(`确定要清空所有 ${totalFavCount} 个收藏的进度吗？`)) {
+                        banks.forEach(bank => {
+                          if (bank.favoritesIds.length > 0) {
+                            clearFavoriteBranchProgress(bank.id);
+                          }
+                        });
+                      }
+                    } else {
+                      Alert.alert(
+                        '清空收藏进度',
+                        `确定要清空所有 ${totalFavCount} 个收藏的进度吗？`,
+                        [
+                          { text: '取消', style: 'cancel' },
+                          { text: '确认', style: 'destructive', onPress: () => {
+                            banks.forEach(bank => {
+                              if (bank.favoritesIds.length > 0) {
+                                clearFavoriteBranchProgress(bank.id);
+                              }
+                            });
+                          } },
+                        ]
+                      );
                     }
                   }}
                 >
-                  <Text style={styles.dataSubmitBtnText}>应用</Text>
+                  <Text style={styles.clearFavText}>清空所有进度</Text>
                 </TouchableOpacity>
               </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.favoritesSection}>
+          <Text style={styles.sectionLabel}>错题库</Text>
+          <TouchableOpacity
+            style={[styles.favoritesCard, totalWrongCount === 0 && styles.emptyCard, styles.wrongCard]}
+            onPress={() => {
+              if (totalWrongCount === 0) {
+                showToast('🎉 错题库已清空！');
+                return;
+              }
+              setShowWrongDetail(!showWrongDetail);
+            }}
+          >
+            <View style={styles.favoritesInfo}>
+              <Text style={styles.favoritesIcon}>❌</Text>
+              <View style={styles.flex1}>
+                <Text style={styles.favoritesCount}>
+                  {totalWrongCount > 0 ? `${totalWrongCount} 道错题` : '暂无错题'}
+                </Text>
+                <Text style={styles.favoritesDesc}>
+                  {totalWrongCount > 0 ? '点击查看分类详情' : '答错的题目会自动加入'}
+                </Text>
+              </View>
+              {totalWrongCount > 0 && (
+                <Text style={styles.arrowText}>{showWrongDetail ? '▲' : '▼'}</Text>
+              )}
             </View>
 
-            <Text style={styles.dataHint}>
-              数据将以CSV文件形式保存在指定目录中，每个题库独立存储，同时保存题目、进度、错题本等数据。
-            </Text>
+            {showWrongDetail && totalWrongCount > 0 && (
+              <View style={styles.detailSection}>
+                {getWrongBankBranches().map((branch) => (
+                  <View key={branch.bankId} style={styles.detailRow}>
+                    <View style={styles.detailRowInfo}>
+                      <Text style={styles.detailRowName}>{branch.bankName}</Text>
+                      <Text style={styles.detailRowCount}>{branch.questionIds.length} 题</Text>
+                    </View>
+                    <View style={styles.detailRowActions}>
+                      <TouchableOpacity
+                        style={[styles.detailActionBtn, styles.detailActionPrimary]}
+                        onPress={() => enterWrongBankBranch(branch.bankId)}
+                      >
+                        <Text style={styles.detailActionTextPrimary}>刷题</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.detailActionBtn, styles.detailActionClear]}
+                        onPress={() => {
+                          const isWeb = typeof window !== 'undefined';
+                          if (isWeb) {
+                            if (window.confirm(`确定要清空「${branch.bankName}」的 ${branch.questionIds.length} 个错题吗？`)) {
+                              clearWrongBranchProgress(branch.bankId);
+                            }
+                          } else {
+                            Alert.alert(
+                              '清空错题',
+                              `确定要清空「${branch.bankName}」的 ${branch.questionIds.length} 个错题吗？`,
+                              [
+                                { text: '取消', style: 'cancel' },
+                                { text: '确认', style: 'destructive', onPress: () => clearWrongBranchProgress(branch.bankId) },
+                              ]
+                            );
+                          }
+                        }}
+                      >
+                        <Text style={styles.detailActionTextClear}>清空</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.detailActionBtn, styles.detailActionExport]}
+                        onPress={() => exportWrongBranch(branch.bankId)}
+                      >
+                        <Text style={styles.detailActionTextExport}>导出</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+                <View style={styles.detailFooter}>
+                  <TouchableOpacity
+                    style={[styles.exportAllBtn, styles.exportAllBtnWrong]}
+                    onPress={() => exportWrongAll()}
+                  >
+                    <Text style={styles.exportAllBtnText}>全部导出 ({totalWrongCount}题)</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
-            <View style={styles.dataActionsRow}>
-              <TouchableOpacity
-                style={[styles.dataActionBtn, styles.exportBtn]}
-                onPress={() => exportAllData()}
-              >
-                <Text style={styles.dataActionBtnText}>导出数据</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.dataActionBtn, styles.importBtn]}
-                onPress={() => dataFileInputRef.current?.click()}
-              >
-                <Text style={styles.dataActionBtnText}>导入数据</Text>
-              </TouchableOpacity>
-            </View>
+        <View style={styles.menuSection}>
+          <TouchableOpacity
+            style={[styles.menuButton, styles.primaryButton]}
+            onPress={() => setShowImport(true)}
+          >
+            <Text style={styles.menuIcon}>📥</Text>
+            <Text style={styles.menuButtonText}>导入题库</Text>
+            <Text style={styles.menuButtonDesc}>支持 CSV / Markdown，可批量导入</Text>
+          </TouchableOpacity>
 
-            {dataPath && isFileSystemAccessSupported() ? (
-              <TouchableOpacity
-                style={styles.clearBtn}
-                onPress={() => {
-                  const isWeb = typeof window !== 'undefined';
-                  if (isWeb) {
-                    if (window.confirm('将清除本地存储路径绑定，需要重新选择文件夹。已保存的文件不会被删除。')) {
-                      clearDirHandle();
-                      useAppStore.setState({ dataPath: null });
-                      useAppStore.getState().showToast('已清除，请重新选择文件夹');
-                    }
-                  } else {
-                    Alert.alert(
-                      '清除存储',
-                      '将清除本地存储路径绑定，需要重新选择文件夹。已保存的文件不会被删除。',
-                      [
-                        { text: '取消', style: 'cancel' },
-                        {
-                          text: '确认清除',
-                          style: 'destructive',
-                          onPress: () => {
-                            clearDirHandle();
-                            useAppStore.setState({ dataPath: null });
-                            useAppStore.getState().showToast('已清除，请重新选择文件夹');
+          {banks.length > 0 && (
+            <TouchableOpacity
+              style={[styles.menuButton, styles.tertiaryButton]}
+              onPress={() => setShowBankManager(true)}
+            >
+              <Text style={styles.menuIcon}>📂</Text>
+              <Text style={styles.tertiaryButtonText}>管理题库</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.dataSection}>
+          <TouchableOpacity
+            style={styles.dataHeader}
+            onPress={() => setShowDataSettings(!showDataSettings)}
+          >
+            <Text style={styles.dataHeaderText}>数据设置</Text>
+            <Text style={styles.dataHeaderArrow}>{showDataSettings ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+
+          {showDataSettings && (
+            <View style={styles.dataContent}>
+              <View style={styles.dataPathRow}>
+                <Text style={styles.dataPathLabel}>当前存储路径：</Text>
+                <Text style={styles.dataPathValue} numberOfLines={1}>
+                  {dataPath || '未设置（使用默认路径）'}
+                </Text>
+              </View>
+
+              {isFileSystemAccessSupported() ? (
+                <TouchableOpacity
+                  style={styles.dataActionButton}
+                  onPress={async () => {
+                    await selectDataDirectory();
+                  }}
+                >
+                  <Text style={styles.dataActionText}>选择本地文件夹</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              <View style={styles.dataInputRow}>
+                <Text style={styles.dataInputLabel}>
+                  {isFileSystemAccessSupported() ? '原生 App 可手动输入路径：' : '手动输入路径：'}
+                </Text>
+                <View style={styles.dataInputRowInner}>
+                  <TextInput
+                    style={styles.dataInput}
+                    placeholder="/path/to/your/data"
+                    value={customPath}
+                    onChangeText={setCustomPath}
+                  />
+                  <TouchableOpacity
+                    style={styles.dataSubmitBtn}
+                    onPress={async () => {
+                      if (customPath.trim()) {
+                        await setCustomDataPath(customPath.trim());
+                        setCustomPath('');
+                      }
+                    }}
+                  >
+                    <Text style={styles.dataSubmitBtnText}>应用</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <Text style={styles.dataHint}>
+                数据以 CSV 文件保存在指定目录，每个题库独立存储，同时保存题目、进度、错题本等数据。
+              </Text>
+
+              <View style={styles.dataActionsRow}>
+                <TouchableOpacity
+                  style={[styles.dataActionBtn, styles.exportBtn]}
+                  onPress={() => exportAllData()}
+                >
+                  <Text style={styles.dataActionBtnText}>导出数据</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.dataActionBtn, styles.importBtn]}
+                  onPress={() => dataFileInputRef.current?.click()}
+                >
+                  <Text style={styles.dataActionBtnText}>导入数据</Text>
+                </TouchableOpacity>
+              </View>
+
+              {dataPath && isFileSystemAccessSupported() ? (
+                <TouchableOpacity
+                  style={styles.clearBtn}
+                  onPress={() => {
+                    const isWeb = typeof window !== 'undefined';
+                    if (isWeb) {
+                      if (window.confirm('将清除本地存储路径绑定，需要重新选择文件夹。已保存的文件不会被删除。')) {
+                        clearDirHandle();
+                        useAppStore.setState({ dataPath: null });
+                        useAppStore.getState().showToast('已清除，请重新选择文件夹');
+                      }
+                    } else {
+                      Alert.alert(
+                        '清除存储',
+                        '将清除本地存储路径绑定，需要重新选择文件夹。已保存的文件不会被删除。',
+                        [
+                          { text: '取消', style: 'cancel' },
+                          {
+                            text: '确认清除',
+                            style: 'destructive',
+                            onPress: () => {
+                              clearDirHandle();
+                              useAppStore.setState({ dataPath: null });
+                              useAppStore.getState().showToast('已清除，请重新选择文件夹');
+                            },
                           },
-                        },
-                      ]
-                    );
+                        ]
+                      );
+                    }
+                  }}
+                >
+                  <Text style={styles.clearBtnText}>清除存储绑定</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              <input
+                ref={dataFileInputRef}
+                type="file"
+                accept=".csv,.md,.markdown"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    await importAllData(file);
+                    e.target.value = '';
                   }
                 }}
-              >
-                <Text style={styles.clearBtnText}>清除存储绑定</Text>
-              </TouchableOpacity>
-            ) : null}
-
-            <input
-              ref={dataFileInputRef}
-              type="file"
-              accept=".csv,.md,.markdown"
-              style={{ display: 'none' }}
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  await importAllData(file);
-                  e.target.value = '';
-                }
-              }}
-            />
-          </View>
-        )}
-      </View>
+              />
+            </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -968,7 +973,7 @@ function ResultCard({ result, onSelect }: { result: ImportFileResult; onSelect: 
         <View style={styles.resultCardIcon}>
           {result.questionsCount > 0 ? '✅' : '❌'}
         </View>
-        <View style={{ flex: 1 }}>
+        <View style={styles.flex1}>
           <Text style={styles.resultCardName} numberOfLines={1}>{result.fileName}</Text>
           <Text style={styles.resultCardInfo}>
             {result.questionsCount > 0
@@ -1029,895 +1034,1013 @@ function ResultCard({ result, onSelect }: { result: ImportFileResult; onSelect: 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: colors.paper,
+  },
+  flexFill: {
+    flex: 1,
+  },
+  flex1: {
+    flex: 1,
   },
   scrollContainer: {
     flex: 1,
   },
   scrollContent: {
-    padding: small.xl,
-    paddingBottom: heightPercent((40 * 100) / 844),
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  importScrollContent: {
+    paddingBottom: spacing.xxl,
+  },
+  bankScrollContent: {
+    paddingBottom: spacing.xxl,
+  },
+  headerSpacer: {
+    width: 48,
+  },
+  hero: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  heroTitle: {
+    fontFamily,
+    fontSize: fontSize.xxl,
+    fontWeight: 'bold',
+    color: colors.primaryDeep,
+    letterSpacing: 4,
+  },
+  heroSubtitle: {
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.accent,
+    letterSpacing: 6,
+    marginTop: 4,
+  },
+  sectionLabel: {
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+    fontWeight: '600',
+    letterSpacing: 1,
   },
   currentBankSection: {
-    marginBottom: heightSmall.xl,
-  },
-  currentBankLabel: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
-    marginBottom: heightSmall.md,
-    fontWeight: '600',
+    marginBottom: spacing.lg,
   },
   currentBankCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: small.lg,
-    padding: small.lg,
-    borderWidth: small.xs,
-    borderColor: '#4A90D9',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    ...shadow.soft,
   },
   currentBankName: {
-    fontSize: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.lg,
     fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: heightSmall.sm,
+    color: colors.primaryDeep,
+    marginBottom: 6,
   },
   currentBankStats: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
-    marginBottom: heightSmall.md,
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
   },
   progressBar: {
-    height: heightSmall.md,
-    backgroundColor: '#E0E0E0',
-    borderRadius: small.sm,
+    height: 8,
+    backgroundColor: colors.neutralSoft,
+    borderRadius: radius.pill,
     overflow: 'hidden',
   },
   progressBarLarge: {
-    height: heightSmall.md,
-    backgroundColor: '#E0E0E0',
-    borderRadius: small.sm,
+    height: 8,
+    backgroundColor: colors.neutralSoft,
+    borderRadius: radius.pill,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: small.sm,
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
   },
   currentBankActions: {
     flexDirection: 'row',
-    marginTop: heightSmall.md,
-    gap: small.md,
+    marginTop: spacing.md,
+    gap: spacing.sm,
   },
   resumeButton: {
-    flex: 1,
-    backgroundColor: '#4A90D9',
-    paddingVertical: heightSmall.lg,
-    borderRadius: small.md,
+    flex: 1.4,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     alignItems: 'center',
+    ...shadow.soft,
   },
   resumeButtonText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.md,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.md,
     fontWeight: '600',
+    letterSpacing: 1,
   },
   manageButton: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
-    paddingVertical: heightSmall.lg,
-    borderRadius: small.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   manageButtonText: {
-    color: '#666666',
-    fontSize: fontSmall.md,
+    fontFamily,
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  dangerManageButton: {
+    borderColor: colors.danger,
+  },
+  dangerManageText: {
+    fontFamily,
+    color: colors.danger,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
   bankListButton: {
-    backgroundColor: '#E3F2FD',
-    padding: small.lg,
-    borderRadius: small.md,
+    backgroundColor: colors.primarySoft,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     alignItems: 'center',
-    marginBottom: heightSmall.xl,
+    marginBottom: spacing.lg,
   },
   bankListText: {
-    fontSize: fontSmall.sm,
-    color: '#1565C0',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.primaryDeep,
     fontWeight: '600',
   },
   menuSection: {
-    marginTop: heightSmall.md,
+    marginTop: spacing.sm,
   },
   menuButton: {
-    padding: small.xl,
-    borderRadius: small.xl,
-    marginBottom: heightSmall.lg,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
+    marginBottom: spacing.md,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: heightSmall.xs },
-    shadowOpacity: 0.1,
-    shadowRadius: small.md,
-    elevation: 3,
+    ...shadow.card,
   },
   primaryButton: {
-    backgroundColor: '#4A90D9',
+    backgroundColor: colors.primary,
   },
   tertiaryButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: small.xs,
-    borderColor: '#4CAF50',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.accent,
   },
   menuIcon: {
-    fontSize: fontSmall.xl,
-    marginBottom: heightSmall.md,
+    fontSize: 22,
+    marginBottom: spacing.xs,
   },
   menuButtonText: {
-    fontSize: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: heightSmall.sm,
+    color: colors.white,
+    letterSpacing: 1,
   },
   tertiaryButtonText: {
-    fontSize: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: heightSmall.sm,
+    color: colors.primaryDeep,
+    letterSpacing: 1,
   },
   menuButtonDesc: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.75)',
+    marginTop: 4,
   },
   editorHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: heightSmall.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
   },
   backButton: {
-    fontSize: fontSmall.md,
-    color: '#4A90D9',
+    fontFamily,
+    fontSize: fontSize.md,
+    color: colors.primary,
   },
   editorTitle: {
-    fontSize: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.lg,
     fontWeight: 'bold',
-    color: '#333333',
+    color: colors.primaryDeep,
+    letterSpacing: 1,
   },
   sampleButton: {
-    fontSize: fontSmall.md,
-    color: '#FF9800',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.accent,
+  },
+  sampleButton2: {
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  sampleButtonText: {
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  helpWrapper: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   helpBox: {
-    backgroundColor: '#FFF8E1',
-    borderRadius: small.md,
-    padding: small.lg,
-    marginBottom: heightSmall.xl,
-    borderWidth: small.xs,
-    borderColor: '#FFE082',
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
   },
   markdownHelpBox: {
-    marginTop: heightSmall.lg,
-    paddingTop: heightSmall.lg,
-    borderTopWidth: small.xs,
-    borderTopColor: '#FFE082',
+    marginTop: spacing.md,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  helpTitle: {
+    fontFamily,
+    fontSize: fontSize.sm,
+    fontWeight: 'bold',
+    color: colors.primaryDeep,
+    marginBottom: spacing.sm,
+    letterSpacing: 1,
+  },
+  helpText: {
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.text,
+    lineHeight: 24,
   },
   modeSelector: {
     flexDirection: 'row',
-    marginBottom: heightSmall.md,
-    gap: small.sm,
+    marginBottom: spacing.md,
+    backgroundColor: colors.neutralSoft,
+    borderRadius: radius.pill,
+    padding: 4,
+    gap: 4,
   },
   modeButton: {
     flex: 1,
-    paddingVertical: heightSmall.md,
-    paddingHorizontal: small.md,
-    borderRadius: small.md,
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#F5F5F5',
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
     alignItems: 'center',
   },
   modeButtonActive: {
-    backgroundColor: '#4A90D9',
-    borderColor: '#4A90D9',
+    backgroundColor: colors.surface,
+    ...shadow.soft,
   },
   modeButtonText: {
-    fontSize: fontSmall.sm,
-    color: '#666',
-    fontWeight: '500',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    fontWeight: '600',
   },
   modeButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  helpTitle: {
-    fontSize: fontSmall.md,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: heightSmall.md,
-  },
-  helpText: {
-    fontSize: fontSmall.sm,
-    color: '#555',
-    lineHeight: fontSmall.xl,
+    color: colors.primaryDeep,
   },
   promptGenButton: {
-    marginTop: heightSmall.lg,
-    backgroundColor: '#4A90D9',
-    paddingVertical: heightSmall.md,
-    paddingHorizontal: small.lg,
-    borderRadius: small.md,
+    marginTop: spacing.md,
+    backgroundColor: colors.accent,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   promptGenButtonText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.sm,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     fontWeight: '600',
+    letterSpacing: 1,
   },
   promptGenerator: {
-    marginTop: heightSmall.lg,
-    backgroundColor: '#FFFFFF',
-    borderRadius: small.md,
-    padding: small.lg,
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
   },
   promptGenSubtitle: {
-    fontSize: fontSmall.sm,
+    fontFamily,
+    fontSize: fontSize.sm,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: heightSmall.md,
+    color: colors.primaryDeep,
+    marginBottom: spacing.md,
   },
   promptInputRow: {
-    marginBottom: heightSmall.md,
+    marginBottom: spacing.md,
   },
   promptInputLabel: {
-    fontSize: fontSmall.sm,
-    color: '#666',
-    marginBottom: heightSmall.sm,
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
   },
   promptInput: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: small.md,
-    paddingHorizontal: small.md,
-    paddingVertical: heightSmall.md,
-    fontSize: fontSmall.sm,
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
-    color: '#333',
+    backgroundColor: colors.paper,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
   },
   promptInputRowInline: {
     flexDirection: 'row',
-    gap: small.md,
-    marginBottom: heightSmall.md,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   promptInputInlineItem: {
     flex: 1,
   },
   promptSmallInput: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: small.md,
-    paddingHorizontal: small.md,
-    paddingVertical: heightSmall.md,
-    fontSize: fontSmall.sm,
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
-    color: '#333',
+    backgroundColor: colors.paper,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
   },
   promptPreviewBox: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: small.md,
-    padding: small.lg,
-    marginBottom: heightSmall.lg,
-    maxHeight: heightPercent((200 * 100) / 844),
+    backgroundColor: colors.primaryDeep,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    maxHeight: 200,
   },
   promptPreviewText: {
-    color: '#D4D4D4',
-    fontSize: fontSmall.xs,
+    color: '#DCE6F0',
+    fontSize: fontSize.xs,
     fontFamily: 'monospace',
-    lineHeight: fontSmall.lg,
+    lineHeight: 18,
   },
   copyButton: {
-    backgroundColor: '#27AE60',
-    paddingVertical: heightSmall.lg,
-    borderRadius: small.md,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     alignItems: 'center',
-    marginBottom: heightSmall.md,
+    marginBottom: spacing.sm,
   },
   exportMdButton: {
-    backgroundColor: '#8E44AD',
+    backgroundColor: colors.accent,
   },
   copyButtonText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.md,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
   promptHint: {
-    fontSize: fontSmall.xs,
-    color: '#999',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textFaint,
     textAlign: 'center',
+    marginTop: spacing.xs,
   },
   dropZone: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: small.xl,
-    borderWidth: small.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#B0BEC5',
-    padding: widthPercent((40 * 100) / 390),
+    borderColor: colors.borderStrong,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: heightPercent((20 * 100) / 844),
-    minHeight: heightPercent((280 * 100) / 844),
+    minHeight: 260,
   },
   dropZoneActive: {
-    borderColor: '#4A90D9',
-    backgroundColor: '#E3F2FD',
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
   dropIcon: {
-    fontSize: fontSmall.xl,
-    marginBottom: heightSmall.lg,
+    fontSize: 30,
+    marginBottom: spacing.md,
   },
   dropTitle: {
-    fontSize: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: heightSmall.sm,
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
   dropSubtitle: {
-    fontSize: fontSmall.sm,
-    color: '#666',
-    marginBottom: heightSmall.xl,
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    marginBottom: spacing.lg,
   },
   dropText: {
-    fontSize: fontSmall.sm,
-    color: '#666',
-    marginTop: heightSmall.lg,
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    marginTop: spacing.md,
   },
   browseButton: {
-    backgroundColor: '#4A90D9',
-    paddingHorizontal: widthPercent((24 * 100) / 390),
-    paddingVertical: heightSmall.lg,
-    borderRadius: small.md,
-    marginTop: heightSmall.md,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    ...shadow.soft,
   },
   browseButtonText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.md,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     fontWeight: '600',
+    letterSpacing: 1,
   },
   dropHint: {
-    fontSize: fontSmall.xs,
-    color: '#999',
-    marginTop: heightSmall.lg,
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textFaint,
+    marginTop: spacing.md,
   },
   resultSection: {
-    paddingBottom: heightSmall.xl,
+    paddingBottom: spacing.lg,
   },
   resultHeader: {
-    marginBottom: heightSmall.lg,
+    marginBottom: spacing.md,
   },
   resultTitle: {
-    fontSize: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: heightSmall.sm,
+    color: colors.primaryDeep,
+    marginBottom: 4,
   },
   resultStats: {
-    fontSize: fontSmall.sm,
-    color: '#666',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
   },
   resultCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: small.lg,
-    marginBottom: heightSmall.md,
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   resultCardError: {
-    borderColor: '#F44336',
-    borderWidth: small.xs,
+    borderColor: colors.danger,
   },
   resultCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: small.lg,
+    padding: spacing.lg,
   },
   resultCardIcon: {
-    fontSize: fontSmall.xl,
-    marginRight: small.md,
+    fontSize: fontSize.xl,
+    marginRight: spacing.md,
   },
   resultCardName: {
-    fontSize: fontSmall.md,
+    fontFamily,
+    fontSize: fontSize.sm,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   resultCardInfo: {
-    fontSize: fontSmall.sm,
-    color: '#666',
-    marginTop: heightSmall.xs,
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   resultCardArrow: {
-    fontSize: fontSmall.xs,
-    color: '#999',
-    marginLeft: small.md,
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textFaint,
+    marginLeft: spacing.md,
   },
   resultCardBody: {
-    padding: small.lg,
-    paddingTop: 0,
-    borderTopWidth: small.xs,
-    borderTopColor: '#F0F0F0',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
   },
   errorsList: {
-    marginBottom: heightSmall.md,
+    marginBottom: spacing.sm,
   },
   errorItem: {
-    backgroundColor: '#FFF5F5',
-    borderRadius: small.md,
-    padding: small.md,
-    marginBottom: heightSmall.md,
-    borderLeftWidth: small.sm,
-    borderLeftColor: '#F44336',
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.danger,
   },
   errorBlock: {
-    fontSize: fontSmall.xs,
-    color: '#F44336',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.danger,
     fontWeight: '600',
-    marginBottom: heightSmall.sm,
+    marginBottom: spacing.xs,
   },
   errorMsg: {
-    fontSize: fontSmall.sm,
-    color: '#333',
-    lineHeight: fontSmall.xl,
-  },
-  errorLine: {
-    fontSize: fontSmall.xs,
-    color: '#999',
-    marginTop: heightSmall.sm,
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.text,
+    lineHeight: 22,
   },
   errorContent: {
-    fontSize: fontSmall.xs,
-    color: '#666',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
     fontStyle: 'italic',
-    marginTop: heightSmall.sm,
-    backgroundColor: '#F5F5F5',
-    padding: small.md,
-    borderRadius: small.sm,
+    marginTop: spacing.xs,
+    backgroundColor: colors.paper,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
   },
   allGoodText: {
-    fontSize: fontSmall.sm,
-    color: '#4CAF50',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.success,
     fontWeight: '600',
     textAlign: 'center',
-    padding: small.md,
+    padding: spacing.sm,
   },
   partialText: {
-    fontSize: fontSmall.sm,
-    color: '#FF9800',
-    padding: small.md,
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.warning,
+    padding: spacing.sm,
     textAlign: 'center',
   },
   goToBankBtn: {
-    backgroundColor: '#4A90D9',
-    paddingVertical: heightSmall.md,
-    borderRadius: small.md,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     alignItems: 'center',
-    marginTop: heightSmall.md,
+    marginTop: spacing.sm,
   },
   goToBankText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.sm,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
   importAgainButton: {
-    backgroundColor: '#4A90D9',
-    paddingVertical: heightSmall.lg,
-    borderRadius: small.lg,
-    marginTop: heightSmall.md,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+    marginTop: spacing.md,
     alignItems: 'center',
+    ...shadow.soft,
   },
   importAgainText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.md,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.md,
     fontWeight: 'bold',
+    letterSpacing: 1,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: heightPercent((40 * 100) / 844),
+    paddingVertical: spacing.xxl,
   },
   emptyIcon: {
-    fontSize: fontSmall.xl,
-    marginBottom: heightSmall.lg,
+    fontSize: 30,
+    marginBottom: spacing.md,
   },
   emptyText: {
-    fontSize: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: '600',
-    color: '#333333',
-    marginBottom: heightSmall.sm,
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
   emptyDesc: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
   },
   bankCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: small.lg,
-    padding: small.lg,
-    marginBottom: heightSmall.lg,
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   bankCardCurrent: {
-    borderColor: '#4A90D9',
-    borderWidth: small.xs,
+    borderColor: colors.primary,
   },
   bankInfo: {
-    marginBottom: heightSmall.md,
+    marginBottom: spacing.md,
   },
   bankHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: heightSmall.sm,
+    marginBottom: spacing.xs,
   },
   bankName: {
-    fontSize: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: 'bold',
-    color: '#333333',
+    color: colors.primaryDeep,
     flex: 1,
   },
   currentBadge: {
-    backgroundColor: '#4A90D9',
-    color: '#FFFFFF',
-    fontSize: fontSmall.xs,
-    paddingHorizontal: small.md,
-    paddingVertical: heightSmall.xs,
-    borderRadius: small.md,
+    fontFamily,
+    backgroundColor: colors.primary,
+    color: colors.white,
+    fontSize: fontSize.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
     overflow: 'hidden',
   },
   bankStats: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
-    marginBottom: heightSmall.md,
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
   },
   bankActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: small.xl,
-    borderTopWidth: small.xs,
-    borderTopColor: '#F0F0F0',
-    paddingTop: heightSmall.md,
+    gap: spacing.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
   },
   bankActionBtn: {
-    paddingHorizontal: small.md,
-    paddingVertical: heightSmall.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   bankActionText: {
-    fontSize: fontSmall.sm,
-    color: '#4A90D9',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.primary,
   },
   deleteText: {
-    color: '#F44336',
+    color: colors.danger,
   },
   bankEditRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: small.md,
+    gap: spacing.md,
   },
   nameInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: small.md,
-    paddingHorizontal: small.lg,
-    paddingVertical: heightSmall.md,
-    fontSize: fontSmall.sm,
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
-    marginBottom: heightSmall.md,
+    flex: 1,
+    backgroundColor: colors.paper,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
+  },
+  footerBar: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.paper,
+  },
+  footerButton: {
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    ...shadow.soft,
+  },
+  footerButtonText: {
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    letterSpacing: 1,
   },
   dataSection: {
-    marginTop: heightPercent((24 * 100) / 844),
-    backgroundColor: '#FFFFFF',
-    borderRadius: small.lg,
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
+    marginTop: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   dataHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: small.xl,
-    backgroundColor: '#F8F9FA',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   dataHeaderText: {
-    fontSize: fontSmall.md,
+    fontFamily,
+    fontSize: fontSize.sm,
     fontWeight: '600',
-    color: '#333333',
+    color: colors.text,
+    letterSpacing: 1,
   },
   dataHeaderArrow: {
-    fontSize: fontSmall.xs,
-    color: '#666666',
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textFaint,
   },
   dataContent: {
-    padding: small.xl,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
   },
   dataPathRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: heightSmall.lg,
-    gap: small.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   dataPathLabel: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
   },
   dataPathValue: {
-    fontSize: fontSmall.sm,
-    color: '#4A90D9',
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.primary,
     fontWeight: '600',
     flex: 1,
   },
   dataActionButton: {
-    backgroundColor: '#4A90D9',
-    flexDirection: 'row',
+    backgroundColor: colors.primary,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: heightSmall.lg,
-    borderRadius: small.md,
-    marginBottom: heightSmall.lg,
-    gap: small.md,
-  },
-  dataActionIcon: {
-    fontSize: fontSmall.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
   },
   dataActionText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.md,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
   dataInputRow: {
-    marginBottom: heightSmall.md,
+    marginBottom: spacing.md,
   },
   dataInputLabel: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
-    marginBottom: heightSmall.md,
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
   dataInputRowInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: small.md,
+    gap: spacing.sm,
   },
   dataInput: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-    borderRadius: small.md,
-    paddingHorizontal: small.lg,
-    paddingVertical: heightSmall.md,
-    fontSize: fontSmall.sm,
-    borderWidth: small.xs,
-    borderColor: '#E0E0E0',
-    color: '#333333',
+    backgroundColor: colors.paper,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
   },
   dataSubmitBtn: {
-    backgroundColor: '#4A90D9',
-    paddingHorizontal: small.xl,
-    paddingVertical: heightSmall.md,
-    borderRadius: small.md,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
   },
   dataSubmitBtnText: {
-    color: '#FFFFFF',
-    fontSize: fontSmall.sm,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
   dataHint: {
-    fontSize: fontSmall.xs,
-    color: '#999999',
-    lineHeight: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textFaint,
+    lineHeight: 20,
   },
   dataActionsRow: {
     flexDirection: 'row',
-    gap: small.lg,
-    marginTop: heightSmall.lg,
+    gap: spacing.md,
+    marginTop: spacing.md,
   },
   dataActionBtn: {
     flex: 1,
-    paddingVertical: heightSmall.lg,
-    paddingHorizontal: small.xl,
-    borderRadius: small.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   exportBtn: {
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary,
   },
   importBtn: {
-    backgroundColor: '#27ae60',
+    backgroundColor: colors.success,
   },
   dataActionBtnText: {
-    color: '#ffffff',
-    fontSize: fontSmall.sm,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
   clearBtn: {
-    marginTop: heightSmall.lg,
-    paddingVertical: heightSmall.md,
-    paddingHorizontal: small.xl,
-    borderRadius: small.md,
-    borderWidth: small.xs,
-    borderColor: '#e74c3c',
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.danger,
     alignItems: 'center',
   },
   clearBtnText: {
-    color: '#e74c3c',
-    fontSize: fontSmall.sm,
+    fontFamily,
+    color: colors.danger,
+    fontSize: fontSize.sm,
     fontWeight: '500',
   },
   favoritesSection: {
-    marginBottom: heightSmall.xl,
-  },
-  favoritesLabel: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
-    marginBottom: heightSmall.md,
-    fontWeight: '600',
+    marginBottom: spacing.lg,
   },
   favoritesCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: small.lg,
-    padding: small.lg,
-    borderWidth: small.xs,
-    borderColor: '#FFC107',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  wrongCard: {
+    borderColor: colors.danger,
   },
   favoritesInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: small.md,
+    gap: spacing.md,
   },
   favoritesIcon: {
-    fontSize: fontSmall.xl,
+    fontSize: fontSize.xl,
   },
   favoritesCount: {
-    fontSize: fontSmall.lg,
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: 'bold',
-    color: '#333333',
+    color: colors.text,
   },
   favoritesDesc: {
-    fontSize: fontSmall.sm,
-    color: '#666666',
-    marginTop: heightSmall.xs,
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   favoritesActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: heightSmall.md,
-    paddingTop: heightSmall.md,
-    borderTopWidth: small.xs,
-    borderTopColor: '#F0F0F0',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   clearFavBtn: {
-    backgroundColor: '#FFEBEE',
-    paddingHorizontal: small.lg,
-    paddingVertical: heightSmall.md,
-    borderRadius: small.md,
+    backgroundColor: colors.dangerSoft,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
   },
   clearFavText: {
-    color: '#E53935',
-    fontSize: fontSmall.sm,
+    fontFamily,
+    color: colors.danger,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
   emptyCard: {
     borderStyle: 'dashed',
-    opacity: 0.8,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: heightSmall.md,
-    gap: small.md,
-  },
-  categoryChip: {
-    backgroundColor: '#E3F2FD',
-    paddingHorizontal: small.md,
-    paddingVertical: heightSmall.sm,
-    borderRadius: small.lg,
-    fontSize: fontSmall.xs,
-    color: '#1976D2',
-  },
-  categoryChipText: {
-    fontSize: fontSmall.xs,
-    color: '#1976D2',
-  },
-  categoryChipWrong: {
-    backgroundColor: '#FFEBEE',
-  },
-  categoryChipWrongText: {
-    color: '#C62828',
+    opacity: 0.85,
   },
   arrowText: {
-    fontSize: fontSmall.sm,
-    color: '#999',
-    marginLeft: small.md,
+    fontFamily,
+    fontSize: fontSize.sm,
+    color: colors.textFaint,
+    marginLeft: spacing.md,
   },
   detailSection: {
-    marginTop: heightSmall.lg,
-    borderTopWidth: small.xs,
-    borderTopColor: '#F0F0F0',
-    paddingTop: heightSmall.md,
+    marginTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: heightSmall.md,
-    paddingHorizontal: small.md,
-    backgroundColor: '#F8F9FA',
-    borderRadius: small.md,
-    marginBottom: heightSmall.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.paper,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
   },
   detailRowInfo: {
     flex: 1,
   },
   detailRowName: {
-    fontSize: fontSmall.sm,
+    fontFamily,
+    fontSize: fontSize.sm,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   detailRowCount: {
-    fontSize: fontSmall.xs,
-    color: '#666',
-    marginTop: heightSmall.xs,
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   detailRowActions: {
     flexDirection: 'row',
-    gap: small.md,
+    gap: spacing.sm,
   },
   detailActionBtn: {
-    paddingHorizontal: small.md,
-    paddingVertical: heightSmall.sm,
-    borderRadius: small.md,
-    minWidth: widthPercent((44 * 100) / 390),
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    minWidth: 44,
     alignItems: 'center',
   },
   detailActionPrimary: {
-    backgroundColor: '#4A90D9',
+    backgroundColor: colors.primary,
   },
   detailActionClear: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: colors.dangerSoft,
   },
   detailActionExport: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.successSoft,
   },
   detailActionTextPrimary: {
-    color: '#fff',
-    fontSize: fontSmall.xs,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.xs,
     fontWeight: '600',
   },
   detailActionTextClear: {
-    color: '#C62828',
-    fontSize: fontSmall.xs,
+    fontFamily,
+    color: colors.danger,
+    fontSize: fontSize.xs,
     fontWeight: '600',
   },
   detailActionTextExport: {
-    color: '#2E7D32',
-    fontSize: fontSmall.xs,
+    fontFamily,
+    color: colors.success,
+    fontSize: fontSize.xs,
     fontWeight: '600',
   },
   detailFooter: {
-    marginTop: heightSmall.md,
-    paddingTop: heightSmall.md,
-    borderTopWidth: small.xs,
-    borderTopColor: '#F0F0F0',
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
     alignItems: 'center',
   },
   exportAllBtn: {
-    backgroundColor: '#4A90D9',
-    paddingVertical: heightSmall.md,
-    paddingHorizontal: small.xl,
-    borderRadius: small.md,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   exportAllBtnWrong: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.danger,
   },
   exportAllBtnText: {
-    color: '#fff',
-    fontSize: fontSmall.sm,
+    fontFamily,
+    color: colors.white,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
 });

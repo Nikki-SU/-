@@ -1,18 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { widthPercent, heightPercent, fontSizePercent, small, fontSmall, heightSmall } from '../utils/responsive';
+import { colors, fontFamily, fontSize, radius, spacing } from '../utils/theme';
 import { useAppStore } from '../stores/useAppStore';
 import { generateQuestionsMarkdown, downloadMarkdown } from '../utils/exportUtils';
-
-const COLORS = {
-  primary: '#4A90D9',
-  background: '#F5F7FA',
-  text: '#333333',
-  textLight: '#999999',
-  star: '#FFD700',
-  starInactive: '#CCCCCC',
-  border: '#E0E0E0',
-};
 
 export default function TopBar() {
   const questions = useAppStore((state) => state.questions);
@@ -61,7 +51,7 @@ export default function TopBar() {
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.iconButton} onPress={handleBack}>
-        <Text style={styles.iconText}>←</Text>
+        <Text style={styles.backText}>←</Text>
       </TouchableOpacity>
 
       <View style={styles.centerContainer}>
@@ -71,7 +61,7 @@ export default function TopBar() {
           </Text>
         ) : null}
         <Text style={styles.progressText}>
-          {currentIndex + 1}/{displayTotal}
+          {currentIndex + 1} / {displayTotal}
         </Text>
       </View>
 
@@ -90,7 +80,7 @@ export default function TopBar() {
               }
             }}
           >
-            <Text style={styles.iconText}>📤</Text>
+            <Text style={styles.iconText}>⇩</Text>
           </TouchableOpacity>
         )}
 
@@ -105,7 +95,7 @@ export default function TopBar() {
           <Text
             style={[
               styles.iconText,
-              isFavorite && { color: COLORS.star },
+              isFavorite && { color: colors.accent },
             ]}
           >
             ★
@@ -116,7 +106,7 @@ export default function TopBar() {
           style={styles.iconButton}
           onPress={toggleProgressBoard}
         >
-          <Text style={styles.iconText}>📋</Text>
+          <Text style={styles.iconText}>▦</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -128,26 +118,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: small.lg,
-    paddingVertical: heightSmall.md,
-    backgroundColor: COLORS.background,
-    borderBottomWidth: small.xs,
-    borderBottomColor: COLORS.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.paper,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
   },
   progressText: {
-    fontSize: fontSmall.md,
+    fontFamily,
+    fontSize: fontSize.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.primaryDeep,
+    letterSpacing: 1,
   },
   bankNameText: {
-    fontSize: fontSmall.xs,
-    color: COLORS.primary,
+    fontFamily,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
     fontWeight: '600',
-    maxWidth: '60%',
+    maxWidth: '70%',
+    marginBottom: 2,
     overflow: 'hidden',
   },
   rightContainer: {
@@ -155,11 +149,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconButton: {
-    padding: small.md,
-    marginHorizontal: small.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginHorizontal: 2,
+    borderRadius: radius.sm,
+  },
+  backText: {
+    fontFamily,
+    fontSize: fontSize.xl,
+    color: colors.primary,
   },
   iconText: {
-    fontSize: fontSmall.lg,
-    color: COLORS.starInactive,
+    fontSize: fontSize.md,
+    color: colors.textFaint,
   },
 });

@@ -1,18 +1,30 @@
 import { Dimensions } from 'react-native';
 
-export const widthPercent = (percent: number): number => {
+// 以移动端为基准：宽度按 460 封顶、高度按 900 封顶，
+// 避免在桌面/大屏上百分比尺寸被无限放大导致排版失真。
+const BASE_WIDTH = 460;
+const BASE_HEIGHT = 900;
+
+const clampedWidth = (): number => {
   const { width } = Dimensions.get('window');
-  return (percent / 100) * width;
+  return Math.min(width, BASE_WIDTH);
+};
+
+const clampedHeight = (): number => {
+  const { height } = Dimensions.get('window');
+  return Math.min(height, BASE_HEIGHT);
+};
+
+export const widthPercent = (percent: number): number => {
+  return (percent / 100) * clampedWidth();
 };
 
 export const heightPercent = (percent: number): number => {
-  const { height } = Dimensions.get('window');
-  return (percent / 100) * height;
+  return (percent / 100) * clampedHeight();
 };
 
 export const fontSizePercent = (percent: number): number => {
-  const { width } = Dimensions.get('window');
-  return (percent / 100) * width;
+  return (percent / 100) * clampedWidth();
 };
 
 export const small = {
